@@ -22,9 +22,9 @@
     // Paths: Låter TS förstå aliaset @/
     "baseUrl": "./",
     "paths": {
-      "@/*": ["./src/*", "./components/*"] 
+      "@/*": ["./*"] 
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"], 
+  "include": ["**/*.ts", "**/*.tsx"], 
   "references": [] 
 }

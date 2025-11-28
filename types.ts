@@ -4,6 +4,8 @@ export type ViewMode = 'LANDING' | 'AUTH' | 'PAYMENT' | 'ONBOARDING' | 'CHAT' | 
 
 export type AuthMode = 'LOGIN' | 'SIGNUP';
 
+export type SupportedLanguage = 'en' | 'sv' | 'fr' | 'de' | 'es' | 'zh';
+
 export enum CoachingMode {
   BASELINE = 'BASELINE',
   SHADOW = 'SHADOW',
@@ -62,7 +64,7 @@ export interface CoreMemory {
 export interface UserState {
   id: string;
   email: string;
-  emailVerified: boolean;
+  emailVerified: boolean; // New security field
   name?: string; 
   joinedAt: string;
   tier: PremiumTier;
@@ -85,12 +87,12 @@ export interface UserState {
   streakDays: number;
   voiceEnabled: boolean;
   memories: CoreMemory[];
-
-  // Marketing
-  lastViewedMarketingVersion: number;
   
   // Language
   language?: string;
+
+  // Marketing
+  lastViewedMarketingVersion: number;
 }
 
 export interface SignalPackage {
@@ -101,6 +103,7 @@ export interface SignalPackage {
   contradictionScore: number;
   stressMarker: boolean;
   topics: string[];
+  detectedLanguage: string; // e.g. 'en', 'sv', 'es'
 }
 
 export interface Message {
@@ -154,6 +157,14 @@ export interface DailyInsight {
     description: string;
     resolution: string;
   }>;
+  
+  distortions?: {
+    allOrNothing: number; // 0-10
+    catastrophizing: number;
+    emotionalReasoning: number;
+    shouldStatements: number;
+    personalization: number;
+  };
 }
 
 export interface TwinState {
@@ -169,6 +180,7 @@ export interface AppData {
   insights: DailyInsight[];
   currentMode: CoachingMode;
   twinState: TwinState;
+  rentalAccess: Record<string, number>; // Map of Mode ID to Expiry Timestamp
 }
 
 declare global {

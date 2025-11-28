@@ -51,7 +51,8 @@ const App = () => {
     activeThreadId: null,
     insights: [],
     currentMode: CoachingMode.BASELINE,
-    twinState: INITIAL_TWIN_STATE
+    twinState: INITIAL_TWIN_STATE,
+    rentalAccess: {}
   });
   const [view, setView] = useState<ViewMode>('LANDING');
   const [authMode, setAuthMode] = useState<AuthMode>('SIGNUP');

@@ -2,9 +2,19 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Message, CoachingMode, TwinState, DailyInsight, SignalPackage, CoreMemory } from "../types";
 import { MODE_CONFIG } from "../constants";
 
-// The API key must be obtained exclusively from the environment variable process.env.API_KEY.
-// This variable is injected automatically in the execution environment.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Lazy initialization to prevent crash on load if API key is missing.
+// The SDK throws immediately in browser environments if apiKey is missing in the constructor.
+let aiInstance: GoogleGenAI | null = null;
+
+const getAi = (): GoogleGenAI => {
+  if (!aiInstance) {
+    // process.env.API_KEY is injected by Vite. Default to empty string to prevent undefined issues,
+    // though the SDK will likely throw an error if the key is invalid when used.
+    const apiKey = process.env.API_KEY || '';
+    aiInstance = new GoogleGenAI({ apiKey });
+  }
+  return aiInstance;
+};
 
 // --- NEW: LONG-TERM MEMORY SCANNER ---
 export const scanForCoreMemories = async (
@@ -25,7 +35,7 @@ export const scanForCoreMemories = async (
       Return JSON or null if unimportant (score < 7).
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
@@ -69,7 +79,7 @@ export const preprocessUserSignal = async (text: string, historyContext: string)
       Return JSON.
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
@@ -152,7 +162,7 @@ export const generateTwinResponse = async (
       Respond strictly in character.
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
@@ -194,7 +204,7 @@ export const analyzeTwinState = async (
       ${conversationText}
     `;
 
-    const response = await ai.models.generateContent({
+    const response = await getAi().models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {

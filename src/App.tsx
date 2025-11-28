@@ -1,10 +1,12 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { ViewMode, AuthMode, UserState, Message, AppData, CoachingMode, PremiumTier, TwinState, PaymentMethod, ChatThread } from './types';
 import { APP_NAME, INITIAL_TWIN_STATE, MODE_CONFIG, t } from './constants';
 import { generateTwinResponse, analyzeTwinState, preprocessUserSignal, generateInitialTelemetry, scanForCoreMemories } from './services/geminiService';
-import { billingApi } from './services/billingApi';
+// Removed billingApi
 import { dbService } from './services/dbService';
 import { authService } from './services/authService';
+import { stripeService } from './services/stripeService';
 import TwinAvatar from './components/TwinAvatar';
 import InsightsDashboard from './components/InsightsDashboard';
 import Marketplace from './components/Marketplace';
@@ -141,6 +143,7 @@ const App = () => {
     const unsubscribe = authService.onAuthStateChange(async (firebaseUser) => {
       if (firebaseUser) {
         try {
+          // loadUserState now checks for active Stripe subscriptions in background
           let user = await dbService.loadUserState(firebaseUser.uid);
           
           if (user) {
@@ -158,9 +161,15 @@ const App = () => {
                insights
              }));
              
-             if (view === 'LANDING' || view === 'AUTH') {
+             // Handle View Transitions based on state
+             if (view === 'LANDING' || view === 'AUTH' || view === 'PAYMENT') {
                 if (!user.name) setView('ONBOARDING');
-                else if (user.subscriptionStatus === 'incomplete' && user.tier !== PremiumTier.FREE) setView('PAYMENT');
+                // If user selected a paid plan but hasn't paid, stay on Payment
+                // unless they are downgrading to free
+                else if (user.tier !== PremiumTier.FREE && user.subscriptionStatus !== 'active_subscription' && user.subscriptionStatus !== 'trial_active') {
+                   // Optional: Check if we are returning from Stripe (this is usually handled by URL params or webhook updates)
+                   setView('CHAT'); // Default to chat, UI will show locks if needed
+                }
                 else setView('CHAT');
              }
           }
@@ -186,7 +195,6 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    // Only auto-scroll if NOT searching to avoid jumping
     if (view === 'CHAT' && !searchQuery) {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
@@ -222,7 +230,7 @@ const App = () => {
     const userTierVal = getTierValue(data.user.tier);
     const requiredTierVal = getTierValue(requiredTier);
     
-    const isSubActive = ['active_subscription', 'trial_active', 'free', 'cancelled'].includes(data.user.subscriptionStatus);
+    const isSubActive = ['active_subscription', 'trial_active', 'free', 'cancelled', 'downgrade_scheduled'].includes(data.user.subscriptionStatus);
     if (!isSubActive) return requiredTierVal === 0;
 
     return userTierVal >= requiredTierVal;
@@ -247,77 +255,35 @@ const App = () => {
   // --- Handlers ---
   const handleAuthComplete = async (email: string, plan: PremiumTier, uid: string) => {
     let user = await dbService.loadUserState(uid);
-    if (!user) {
-      user = {
-        id: uid,
-        email,
-        emailVerified: false,
-        joinedAt: new Date().toISOString(),
-        tier: plan,
-        subscriptionStatus: plan === PremiumTier.FREE ? 'free' : 'incomplete',
-        coins: 100,
-        streakDays: 1,
-        voiceEnabled: true,
-        memories: [],
-        lastViewedMarketingVersion: 0
-      };
-      await dbService.saveUserState(uid, user);
-      
-      setData({
-        user,
-        threads: [],
-        activeThreadId: null,
-        insights: [],
-        currentMode: CoachingMode.BASELINE,
-        twinState: INITIAL_TWIN_STATE,
-        rentalAccess: {}
-      });
-
-      if (plan !== PremiumTier.FREE) {
-        setView('PAYMENT');
-      } else {
-        setView('ONBOARDING');
-      }
-    } else {
-       if (user.subscriptionStatus === 'incomplete' && user.tier !== PremiumTier.FREE) {
-         setView('PAYMENT');
-       } else if (!user.name) {
-         setView('ONBOARDING');
-       } else {
-         setView('CHAT');
-       }
+    // Logic handled in Auth.tsx and dbService, we just handle routing here
+    if (user) {
+        if (!user.name) {
+          setView('ONBOARDING');
+        } else if (plan !== PremiumTier.FREE && user.subscriptionStatus !== 'active_subscription') {
+          // If signing up for paid, send to payment
+          setSelectedPlan(plan);
+          setView('PAYMENT');
+        } else {
+          setView('CHAT');
+        }
     }
   };
 
+  // Payment success is now handled via Stripe Redirect -> Webhook -> Firestore Sync
+  // This callback is less relevant for the Stripe Extension flow but kept for compatibility
   const handlePaymentSuccess = async (subData: any, pm: PaymentMethod) => {
-    if (!data.user) return;
-    const updatedUser: UserState = {
-      ...data.user,
-      subscriptionId: subData.subscriptionId,
-      subscriptionStatus: subData.status,
-      tier: selectedPlan,
-      nextBillingDate: subData.currentPeriodEnd,
-      paymentMethod: pm,
-      cancelAtPeriodEnd: false
-    };
-    
-    const safeMode = getTierValue(selectedPlan) >= getTierValue(MODE_CONFIG[data.currentMode].minTier) 
-      ? data.currentMode 
-      : CoachingMode.BASELINE;
-
-    setData(prev => ({ ...prev, user: updatedUser, currentMode: safeMode }));
-    await dbService.saveUserState(data.user!.id, updatedUser);
-    setView(updatedUser.name ? 'CHAT' : 'ONBOARDING');
+     // Reload user to get latest subscription status
+     if (data.user) {
+         const user = await dbService.loadUserState(data.user.id);
+         if (user) setData(prev => ({ ...prev, user }));
+         setView('CHAT');
+     }
   };
 
   const handleCoinPurchase = async (amount: number) => {
     if (!data.user) return;
-    await billingApi.buyCoinPackSecure(data.user.id, 'coin_pack', amount);
-    const newBalance = data.user.coins + amount;
-    
-    const updatedUser = { ...data.user, coins: newBalance };
-    setData(prev => ({ ...prev, user: updatedUser }));
-    await dbService.updateUserFields(data.user!.id, { coins: newBalance });
+    // Coin purchase would also likely be a Stripe checkout session
+    alert("Coin purchase would use Stripe Checkout similarly to subscriptions.");
   };
 
   const handleSendMessage = async () => {
@@ -413,70 +379,21 @@ const App = () => {
     });
   };
 
+  // Handled by SubscriptionPortal now redirecting to Stripe
   const handleSubscriptionAction = async (action: 'cancel' | 'resume' | 'update_payment' | 'change_plan_view') => {
-    if (!data.user) return;
-    const subId = data.user.subscriptionId || `sub_gen_${Date.now()}`;
-    
     if (action === 'change_plan_view') { setShowPortal(false); setView('MARKETPLACE'); return; }
-
-    if (action === 'cancel') {
-      const res = await billingApi.cancelSubscriptionSecure(subId);
-      if (res.success && res.data) {
-        const updated = { ...data.user, subscriptionId: subId, subscriptionStatus: res.data.status, cancelAtPeriodEnd: true };
-        setData(prev => ({ ...prev, user: updated }));
-        dbService.saveUserState(data.user!.id, updated);
-      }
-    }
-    if (action === 'resume') {
-       const res = await billingApi.reactivateSubscriptionSecure(subId);
-       if (res.success && res.data) {
-         const updated = { ...data.user, subscriptionId: subId, subscriptionStatus: res.data.status, cancelAtPeriodEnd: false };
-         setData(prev => ({ ...prev, user: updated }));
-         dbService.saveUserState(data.user!.id, updated);
-       }
-    }
-    if (action === 'update_payment') {
-      const res = await billingApi.updatePaymentMethodSecure(subId, { type: 'card' });
-      if (res.success && res.data) {
-        const updated = { ...data.user, paymentMethod: res.data };
-        setData(prev => ({ ...prev, user: updated }));
-        dbService.saveUserState(data.user!.id, updated);
-      }
-    }
+    // Other actions handled by Portal redirect
   };
 
   const handlePlanChange = async (newTier: PremiumTier) => {
     if (!data.user) return;
     
-    const isUpgrade = getTierValue(newTier) > getTierValue(data.user.tier);
-    
-    if (isUpgrade) {
-      setSelectedPlan(newTier); setShowPortal(false); setView('PAYMENT');
-      return;
-    }
-    
-    const subId = data.user.subscriptionId || `sub_gen_${Date.now()}`;
-    const res = await billingApi.changePlanSecure(subId, newTier);
-    if (res.success && res.data) {
-      const safeMode = getTierValue(newTier) >= getTierValue(MODE_CONFIG[data.currentMode].minTier) 
-        ? data.currentMode 
-        : CoachingMode.BASELINE;
-
-      const updated = { 
-        ...data.user, 
-        tier: newTier, 
-        subscriptionStatus: res.data.status, 
-        cancelAtPeriodEnd: false 
-      };
-      
-      setData(prev => ({ 
-        ...prev, 
-        currentMode: safeMode,
-        user: updated
-      }));
-      dbService.saveUserState(data.user!.id, updated);
-      setShowPortal(false); setView('CHAT');
-    }
+    // For Stripe, changing plan usually means starting a new Checkout Session or Portal
+    // For this flow, we'll send them to Payment gateway to "checkout" the new plan
+    // In reality, the portal handles upgrades nicely, but we can also do checkout
+    setSelectedPlan(newTier); 
+    setShowPortal(false); 
+    setView('PAYMENT');
   };
 
   const handleModeSwitch = (mode: CoachingMode) => {
@@ -513,7 +430,6 @@ const App = () => {
     await dbService.updateUserFields(data.user.id, { lastViewedMarketingVersion: CURRENT_MARKETING_VERSION });
   };
   
-  // Filter messages based on search query
   const getFilteredMessages = () => {
     const activeThread = data.threads.find(t => t.id === data.activeThreadId);
     if (!activeThread) return [];
@@ -537,7 +453,7 @@ const App = () => {
 
   if (view === 'LANDING') return <LandingPage onLogin={() => {setAuthMode('LOGIN'); setView('AUTH')}} onSelectPlan={(tier) => {setSelectedPlan(tier); setAuthMode('SIGNUP'); setView('AUTH')}} />; 
   if (view === 'AUTH') return <Auth mode={authMode} selectedPlan={selectedPlan} onAuthComplete={handleAuthComplete} onSwitchMode={setAuthMode} onBack={() => setView('LANDING')} />; 
-  if (view === 'PAYMENT') return <PaymentGateway selectedTier={selectedPlan} userId={data.user?.id || ''} userEmail={data.user?.email || ''} onSuccess={handlePaymentSuccess} onBack={() => setView('AUTH')} />; 
+  if (view === 'PAYMENT') return <PaymentGateway selectedTier={selectedPlan} userId={data.user?.id || ''} userEmail={data.user?.email || ''} onSuccess={handlePaymentSuccess} onBack={() => setView('CHAT')} />; 
   if (view === 'ONBOARDING') return (
     <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6 text-center">
       <h1 className="text-4xl font-light mb-4">{t('onboarding.title')}</h1>

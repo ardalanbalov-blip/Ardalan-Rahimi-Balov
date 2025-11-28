@@ -1,33 +1,35 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { UserState, PremiumTier, SubscriptionStatus } from '../types';
-import { X, Clock, Zap, DollarSign, CreditCard } from 'lucide-react';
+import { X, Clock, Zap, DollarSign, CreditCard, ExternalLink, Loader2 } from 'lucide-react';
 import { TIERS } from '../constants';
+import { stripeService } from '../services/stripeService';
 
 interface SubscriptionPortalProps {
   user: UserState;
   onClose: () => void;
-  onAction: (action: 'cancel' | 'resume' | 'update_payment' | 'change_plan_view') => void;
+  // Legacy prop for compatibility, can be ignored in favor of portal logic
+  onAction: (action: 'cancel' | 'resume' | 'update_payment' | 'change_plan_view') => void; 
   t: (key: string) => string;
 }
 
 const SubscriptionPortal: React.FC<SubscriptionPortalProps> = ({ user, onClose, onAction, t }) => {
+  const [loading, setLoading] = useState(false);
 
-  const isTierActive = (tier: PremiumTier): boolean => {
-    const userTierConfig = TIERS.find(t => t.id === user.tier);
-    const targetTierConfig = TIERS.find(t => t.id === tier);
-    if (!userTierConfig || !targetTierConfig) return false;
-    
-    const userIndex = TIERS.indexOf(userTierConfig);
-    const targetIndex = TIERS.indexOf(targetTierConfig);
-
-    return userIndex >= targetIndex;
-  };
-  
-  const isCancellable = user.subscriptionStatus === 'active_subscription' || user.subscriptionStatus === 'trial_active';
-  const isDowngradeScheduled = user.subscriptionStatus === 'downgrade_scheduled';
-  const isPaymentIssue = ['incomplete', 'past_due', 'unpaid'].includes(user.subscriptionStatus);
   const isFree = user.tier === PremiumTier.FREE || user.subscriptionStatus === 'free';
+  const isPaymentIssue = ['incomplete', 'past_due', 'unpaid'].includes(user.subscriptionStatus);
   
+  const handlePortalRedirect = async () => {
+    setLoading(true);
+    try {
+      await stripeService.goToPortal();
+    } catch (e) {
+      console.error(e);
+      setLoading(false);
+      alert("Could not redirect to portal. Please try again.");
+    }
+  };
+
   const getStatusDisplay = (status: SubscriptionStatus) => {
     switch(status) {
       case 'active_subscription': return <span className="text-emerald-400 font-semibold">{t('status.active')}</span>;
@@ -76,16 +78,6 @@ const SubscriptionPortal: React.FC<SubscriptionPortalProps> = ({ user, onClose, 
                      <span className="text-white font-mono text-sm">{new Date(user.nextBillingDate).toLocaleDateString()}</span>
                   </div>
                 )}
-                
-                {user.paymentMethod && (
-                  <div className="flex items-center justify-between">
-                     <div className="flex items-center gap-2 text-sm text-zinc-300">
-                       <CreditCard size={16} className="text-zinc-500"/>
-                       {t('status.paymentMethod')}
-                     </div>
-                     <span className="text-white text-sm font-mono">{user.paymentMethod.brand} •••• {user.paymentMethod.last4}</span>
-                  </div>
-                )}
             </div>
 
             {/* Warnings */}
@@ -95,41 +87,36 @@ const SubscriptionPortal: React.FC<SubscriptionPortalProps> = ({ user, onClose, 
                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"/>
                        {t('status.warningRisk')}
                     </p>
-                    <button 
-                        onClick={() => onAction('update_payment')} 
-                        className="text-xs bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition font-bold uppercase tracking-wider"
-                    >
-                        {t('button.updatePaymentMethod')}
-                    </button>
                 </div>
             )}
             
-            {/* Actions */}
-            <div className="grid gap-3 pt-2">
-                <button 
-                    onClick={() => onAction('change_plan_view')} 
-                    className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-semibold hover:bg-indigo-500 transition duration-150 shadow-lg shadow-indigo-900/20"
-                >
-                    {isFree ? t('marketplace.upgrade') : t('button.changePlan')}
-                </button>
-                
-                {isDowngradeScheduled && (
-                    <button 
-                        onClick={() => onAction('resume')} 
-                        className="w-full bg-emerald-500/10 text-emerald-400 py-3.5 rounded-xl font-semibold hover:bg-emerald-500/20 transition duration-150 border border-emerald-500/30"
-                    >
-                        {t('button.reactivateSubscription')}
-                    </button>
+            {/* Main Action Button */}
+            <div className="pt-2">
+                {isFree ? (
+                   <button 
+                      onClick={() => onAction('change_plan_view')} 
+                      className="w-full bg-indigo-600 text-white py-3.5 rounded-xl font-semibold hover:bg-indigo-500 transition duration-150 shadow-lg shadow-indigo-900/20"
+                   >
+                      {t('marketplace.upgrade')}
+                   </button>
+                ) : (
+                   <button 
+                      onClick={handlePortalRedirect} 
+                      disabled={loading}
+                      className="w-full bg-white text-black py-3.5 rounded-xl font-semibold hover:bg-zinc-200 transition duration-150 flex items-center justify-center gap-2"
+                   >
+                      {loading ? <Loader2 className="animate-spin" /> : (
+                        <>
+                          {t('button.manageStripe')} 
+                          <ExternalLink size={16} />
+                        </>
+                      )}
+                   </button>
                 )}
                 
-                {isCancellable && (
-                    <button 
-                        onClick={() => onAction('cancel')} 
-                        className="w-full bg-zinc-800 text-zinc-400 py-3.5 rounded-xl font-medium hover:bg-zinc-700 hover:text-white transition duration-150"
-                    >
-                        {t('button.cancelSubscription')}
-                    </button>
-                )}
+                <p className="text-center text-xs text-zinc-500 mt-4">
+                  Manage your billing, payment methods, and invoices securely via Stripe.
+                </p>
             </div>
             
         </div>

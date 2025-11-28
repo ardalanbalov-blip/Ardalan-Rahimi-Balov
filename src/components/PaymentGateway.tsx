@@ -1,7 +1,9 @@
-import React, { useEffect } from 'react';
+
+import React, { useState } from 'react';
 import { PremiumTier, PaymentMethod } from '../types';
 import { TIERS, t } from '../constants';
-import { Shield, CheckCircle, ArrowLeft } from 'lucide-react';
+import { stripeService } from '../services/stripeService';
+import { Shield, CheckCircle, ArrowLeft, Loader2, CreditCard } from 'lucide-react';
 
 interface Props {
   selectedTier: PremiumTier;
@@ -11,33 +13,29 @@ interface Props {
   onBack: () => void;
 }
 
-const PaymentGateway: React.FC<Props> = ({ selectedTier, userId, userEmail, onSuccess, onBack }) => {
+const PaymentGateway: React.FC<Props> = ({ selectedTier, onBack }) => {
   const tierDetails = TIERS.find(t => t.id === selectedTier);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Workaround for TypeScript error with custom element
-  const StripeBuyButton = 'stripe-buy-button' as any;
-
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.src = "https://js.stripe.com/v3/buy-button.js";
-    script.async = true;
-    document.body.appendChild(script);
-
-    return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
-    };
-  }, []);
+  const handleCheckout = async () => {
+    if (!tierDetails) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await stripeService.startCheckout(selectedTier);
+      // Logic pauses here as window redirects
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Unable to start checkout. Please try again.");
+      setLoading(false);
+    }
+  };
 
   if (!tierDetails) return null;
 
-  // Safe env access
-  const publishableKey = (import.meta as any).env?.VITE_STRIPE_PK || 'pk_test_PLACEHOLDER';
-
   return (
     <div className="min-h-screen bg-[#0a0a0b] text-white flex items-center justify-center p-6 relative">
-       {/* Background Ambience */}
       <div className="absolute inset-0 bg-gradient-to-tr from-indigo-900/10 via-black to-zinc-900/50 pointer-events-none" />
 
       <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 items-start relative z-10">
@@ -83,37 +81,33 @@ const PaymentGateway: React.FC<Props> = ({ selectedTier, userId, userEmail, onSu
             <span>{t('common.cost')}</span>
             <span className="text-xl text-white">{tierDetails.price}</span>
           </div>
-          
-          <div className="text-xs text-zinc-500 bg-zinc-900/50 p-4 rounded-xl border border-white/5">
-            <p className="mb-2"><strong className="text-zinc-300">Stripe Secure:</strong> Payments are processed securely by Stripe. We do not store your card information.</p>
-          </div>
         </div>
 
-        {/* Right Side: Stripe Buy Button */}
+        {/* Right Side: Action Area */}
         <div className="bg-white/5 border border-white/5 p-8 rounded-3xl min-h-[400px] flex flex-col justify-center items-center text-center">
           
-          {tierDetails.stripeBuyButtonId ? (
-            <div className="w-full">
-              <h3 className="text-lg font-medium text-white mb-6">{t('marketplace.buy')}</h3>
-              
-              <div className="flex justify-center">
-                <StripeBuyButton
-                  buy-button-id={tierDetails.stripeBuyButtonId}
-                  publishable-key={publishableKey}
-                  client-reference-id={userId}
-                  customer-email={userEmail}
-                >
-                </StripeBuyButton>
-              </div>
-            </div>
-          ) : (
-            <div className="text-zinc-500">
-              <p>No payment required for this tier.</p>
-              <button onClick={onBack} className="mt-4 px-6 py-2 bg-white text-black rounded-full text-sm font-bold">
-                {t('button.back')}
-              </button>
-            </div>
-          )}
+          <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-6">
+             <CreditCard size={32} className="text-white" />
+          </div>
+          
+          <h3 className="text-xl font-medium text-white mb-2">{t('marketplace.buy')}</h3>
+          <p className="text-zinc-400 text-sm mb-8 max-w-xs">
+            You will be redirected to Stripe to complete your secure purchase.
+          </p>
+          
+          {error && <p className="text-red-400 text-sm mb-4 bg-red-500/10 p-2 rounded">{error}</p>}
+
+          <button 
+            onClick={handleCheckout}
+            disabled={loading}
+            className="w-full bg-white text-black font-bold py-4 rounded-xl hover:bg-zinc-200 transition-all flex items-center justify-center gap-2"
+          >
+             {loading ? <Loader2 className="animate-spin" /> : t('button.proceed')}
+          </button>
+          
+          <p className="text-xs text-zinc-600 mt-4">
+            Secured by Stripe
+          </p>
 
         </div>
       </div>

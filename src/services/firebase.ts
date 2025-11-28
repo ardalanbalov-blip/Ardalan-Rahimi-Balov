@@ -5,7 +5,7 @@ import { getFirestore } from 'firebase/firestore';
 import { FIREBASE_CONFIG } from '../constants';
 
 // Initialize Firebase using the centralized config from constants
-const app = initializeApp(FIREBASE_CONFIG);
+export const app = initializeApp(FIREBASE_CONFIG);
 
 // Export Auth and Firestore instances
 export const auth = getAuth(app);

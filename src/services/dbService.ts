@@ -5,47 +5,32 @@ import { UserState, SubscriptionStatus, ChatThread, DailyInsight, CoreMemory, Pr
 import { TRIAL_DURATION_DAYS } from '../constants';
 
 const USERS_COLLECTION = 'users';
+const CUSTOMERS_COLLECTION = 'customers';
+const SUBSCRIPTIONS_COLLECTION = 'subscriptions';
 const THREADS_COLLECTION = 'threads';
 const INSIGHTS_COLLECTION = 'insights';
 const MEMORIES_COLLECTION = 'memories';
 
-// --- STORAGE HELPERS (FALLBACK) ---
-
-const getLocalItem = <T>(key: string): T | null => {
-  try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : null;
-  } catch (e) {
-    return null;
-  }
-};
-
-const setLocalItem = (key: string, data: any) => {
-  localStorage.setItem(key, JSON.stringify(data));
-};
-
-// Helper to run Firestore with LocalStorage Fallback
-const dbOp = async <T>(
-  firestoreFn: () => Promise<T>,
-  localFn: () => T
-): Promise<T> => {
-  try {
-    return await firestoreFn();
-  } catch (error: any) {
-    // If permission denied, invalid key, or offline, use LocalStorage
-    // Common error codes for invalid config: permission-denied, unavailable, api-key-not-valid
-    return localFn();
-  }
-};
-
 // --- INITIERING OCH PROFIL ---
 
 export const initializeUserInDB = async (user: User, initialPlan: PremiumTier): Promise<UserState> => {
+  const userRef = doc(db, USERS_COLLECTION, user.uid);
+  const userSnap = await getDoc(userRef);
   const now = new Date().toISOString();
+
+  if (userSnap.exists()) {
+    // If user exists, we should check their authoritative subscription status from Stripe
+    const existingUser = userSnap.data() as UserState;
+    const syncedUser = await syncSubscriptionStatus(existingUser);
+    if (syncedUser) return syncedUser;
+    return existingUser;
+  }
   
-  // Logic to build default user state
+  // New User
   const isTrial = initialPlan !== PremiumTier.FREE;
   const trialEndsAt = isTrial ? new Date(Date.now() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000).toISOString() : undefined;
+  
+  // Default to 'free' or 'trial' until Stripe webhook confirms subscription
   const initialSubscription: SubscriptionStatus = isTrial ? 'trial_active' : 'free';
 
   const newUserState: UserState = {
@@ -64,160 +49,111 @@ export const initializeUserInDB = async (user: User, initialPlan: PremiumTier): 
     lastViewedMarketingVersion: 0,
   };
 
-  return dbOp(
-    async () => {
-      const userRef = doc(db, USERS_COLLECTION, user.uid);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) return userSnap.data() as UserState;
-      
-      await setDoc(userRef, newUserState);
-      return newUserState;
-    },
-    () => {
-      // LocalStorage Fallback
-      const key = `aura_user_${user.uid}`;
-      const existing = getLocalItem<UserState>(key);
-      if (existing) return existing;
-      
-      setLocalItem(key, newUserState);
-      return newUserState;
-    }
-  );
+  await setDoc(userRef, newUserState);
+  return newUserState;
 };
+
+/**
+ * Checks the 'customers/{uid}/subscriptions' collection managed by the Stripe Extension.
+ * Updates the user's local UserState if the authoritative Stripe status differs.
+ */
+const syncSubscriptionStatus = async (userState: UserState): Promise<UserState | null> => {
+  try {
+    const subsRef = collection(db, CUSTOMERS_COLLECTION, userState.id, SUBSCRIPTIONS_COLLECTION);
+    const q = query(subsRef); // Get all subscriptions
+    const snap = await getDocs(q);
+    
+    // Find the most relevant active subscription
+    const activeSub = snap.docs.find(d => ['active', 'trialing'].includes(d.data().status));
+    
+    if (activeSub) {
+      const subData = activeSub.data();
+      const status: SubscriptionStatus = subData.status === 'trialing' ? 'trial_active' : 'active_subscription';
+      const periodEnd = subData.current_period_end ? new Date(subData.current_period_end.seconds * 1000).toISOString() : undefined;
+      const cancelAtPeriodEnd = subData.cancel_at_period_end || false;
+
+      // Only update if something changed
+      if (userState.subscriptionStatus !== status || userState.cancelAtPeriodEnd !== cancelAtPeriodEnd) {
+         const updates: Partial<UserState> = { 
+           subscriptionStatus: status,
+           nextBillingDate: periodEnd,
+           cancelAtPeriodEnd: cancelAtPeriodEnd,
+           subscriptionId: activeSub.id
+         };
+         await updateUserFields(userState.id, updates);
+         return { ...userState, ...updates } as UserState;
+      }
+    } else if (userState.subscriptionStatus === 'active_subscription') {
+      // If no active sub found in Stripe but user thinks they are active -> Downgrade to free/cancelled
+      // (This handles expired subs that weren't synced yet)
+       await updateUserFields(userState.id, { subscriptionStatus: 'cancelled' });
+       return { ...userState, subscriptionStatus: 'cancelled' };
+    }
+  } catch (e) {
+    console.warn("Failed to sync stripe subscription", e);
+  }
+  return null;
+}
 
 export const loadUserState = async (userId: string): Promise<UserState | null> => {
-  return dbOp(
-    async () => {
-      const userRef = doc(db, USERS_COLLECTION, userId);
-      const userSnap = await getDoc(userRef);
-      return userSnap.exists() ? (userSnap.data() as UserState) : null;
-    },
-    () => {
-      return getLocalItem<UserState>(`aura_user_${userId}`);
-    }
-  );
-};
-
-export const saveUserState = async (userId: string, userState: UserState): Promise<void> => {
-  return dbOp(
-    async () => {
-      const userRef = doc(db, USERS_COLLECTION, userId);
-      await setDoc(userRef, userState);
-    },
-    () => {
-      setLocalItem(`aura_user_${userId}`, userState);
-    }
-  );
+  const userRef = doc(db, USERS_COLLECTION, userId);
+  const userSnap = await getDoc(userRef);
+  if (!userSnap.exists()) return null;
+  
+  const user = userSnap.data() as UserState;
+  
+  // Attempt sync on load
+  const synced = await syncSubscriptionStatus(user);
+  return synced || user;
 };
 
 export const updateUserFields = async (userId: string, fields: Partial<UserState>): Promise<void> => {
-  return dbOp(
-    async () => {
-      const userRef = doc(db, USERS_COLLECTION, userId);
-      await updateDoc(userRef, fields);
-    },
-    () => {
-      const key = `aura_user_${userId}`;
-      const current = getLocalItem<UserState>(key);
-      if (current) {
-        setLocalItem(key, { ...current, ...fields });
-      }
-    }
-  );
+  const userRef = doc(db, USERS_COLLECTION, userId);
+  await updateDoc(userRef, fields);
 };
 
 // --- CHATT & MINNE ---
 
 export const saveChatThread = async (userId: string, thread: ChatThread): Promise<void> => {
-  return dbOp(
-    async () => {
-      const threadRef = doc(db, USERS_COLLECTION, userId, THREADS_COLLECTION, thread.id);
-      await setDoc(threadRef, thread, { merge: true });
-    },
-    () => {
-      const key = `aura_threads_${userId}`;
-      const threads = getLocalItem<ChatThread[]>(key) || [];
-      const index = threads.findIndex(t => t.id === thread.id);
-      if (index >= 0) {
-        threads[index] = thread;
-      } else {
-        threads.push(thread);
-      }
-      setLocalItem(key, threads);
-    }
-  );
+  const threadRef = doc(db, USERS_COLLECTION, userId, THREADS_COLLECTION, thread.id);
+  await setDoc(threadRef, thread, { merge: true });
 };
 
 export const loadThreads = async (userId: string): Promise<ChatThread[]> => {
-  return dbOp(
-    async () => {
-      const q = query(collection(db, USERS_COLLECTION, userId, THREADS_COLLECTION));
-      const querySnapshot = await getDocs(q);
-      const threads: ChatThread[] = [];
-      querySnapshot.forEach((doc) => threads.push(doc.data() as ChatThread));
-      return threads.sort((a, b) => b.updatedAt - a.updatedAt);
-    },
-    () => {
-      const threads = getLocalItem<ChatThread[]>(`aura_threads_${userId}`) || [];
-      return threads.sort((a, b) => b.updatedAt - a.updatedAt);
-    }
-  );
+  const q = query(collection(db, USERS_COLLECTION, userId, THREADS_COLLECTION));
+  const querySnapshot = await getDocs(q);
+  const threads: ChatThread[] = [];
+  querySnapshot.forEach((doc) => {
+    threads.push(doc.data() as ChatThread);
+  });
+  return threads.sort((a, b) => b.updatedAt - a.updatedAt); 
 };
 
 export const saveCoreMemory = async (userId: string, memory: CoreMemory): Promise<void> => {
-  return dbOp(
-    async () => {
-      const memoryRef = doc(db, USERS_COLLECTION, userId, MEMORIES_COLLECTION, memory.id);
-      await setDoc(memoryRef, memory);
-    },
-    () => {
-      // Memory is typically saved in UserState.memories as well, 
-      // but if we need a separate collection fallback:
-      const key = `aura_memories_collection_${userId}`;
-      const memories = getLocalItem<CoreMemory[]>(key) || [];
-      memories.push(memory);
-      setLocalItem(key, memories);
-    }
-  );
+  const memoryRef = doc(db, USERS_COLLECTION, userId, MEMORIES_COLLECTION, memory.id);
+  await setDoc(memoryRef, memory);
 };
 
 // --- INSIKTER ---
 
 export const saveInsight = async (userId: string, insight: DailyInsight): Promise<void> => {
-  return dbOp(
-    async () => {
-      const insightRef = doc(db, USERS_COLLECTION, userId, INSIGHTS_COLLECTION, insight.date);
-      await setDoc(insightRef, insight);
-    },
-    () => {
-      const key = `aura_insights_${userId}`;
-      const insights = getLocalItem<DailyInsight[]>(key) || [];
-      insights.push(insight);
-      setLocalItem(key, insights);
-    }
-  );
+  const insightRef = doc(db, USERS_COLLECTION, userId, INSIGHTS_COLLECTION, insight.date);
+  await setDoc(insightRef, insight);
 };
 
 export const loadInsights = async (userId: string): Promise<DailyInsight[]> => {
-  return dbOp(
-    async () => {
-      const q = query(collection(db, USERS_COLLECTION, userId, INSIGHTS_COLLECTION));
-      const querySnapshot = await getDocs(q);
-      const insights: DailyInsight[] = [];
-      querySnapshot.forEach((doc) => insights.push(doc.data() as DailyInsight));
-      return insights.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    },
-    () => {
-      const insights = getLocalItem<DailyInsight[]>(`aura_insights_${userId}`) || [];
-      return insights.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }
-  );
+  const q = query(collection(db, USERS_COLLECTION, userId, INSIGHTS_COLLECTION));
+  const querySnapshot = await getDocs(q);
+  const insights: DailyInsight[] = [];
+  querySnapshot.forEach((doc) => {
+    insights.push(doc.data() as DailyInsight);
+  });
+  return insights.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 };
 
 export const dbService = {
   initializeUserInDB,
   loadUserState,
-  saveUserState,
   updateUserFields,
   saveChatThread,
   loadThreads,

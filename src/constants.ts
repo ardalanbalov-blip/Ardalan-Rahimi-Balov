@@ -1,4 +1,5 @@
 
+
 import { CoachingMode, PremiumTier } from './types';
 
 export const APP_NAME = "Aura";
@@ -49,14 +50,15 @@ export const LOCALE_STRINGS = {
       cancel: "Cancel", 
       unlockTwin: "Unlock Your Twin", 
       login: "Log In", 
-      proceed: "Proceed to Payment", 
+      proceed: "Proceed to Checkout", 
       signIn: "Sign In", 
       processing: "Processing...", 
       learnMore: "Learn More", 
       changePlan: "Change Plan", 
       updatePaymentMethod: "Update Payment Method", 
       cancelSubscription: "Cancel Subscription", 
-      reactivateSubscription: "Reactivate Subscription" 
+      reactivateSubscription: "Reactivate Subscription",
+      manageStripe: "Manage on Stripe"
     },
     auth: { 
       welcome: "Welcome Back", 
@@ -267,7 +269,8 @@ export const TIERS = [
     linklyProductId: "prod_free_tier",
     features: ["Baseline Model", "Standard Chat", "Limited Memory"],
     highlight: false,
-    stripeBuyButtonId: ""
+    stripeBuyButtonId: "",
+    stripePriceId: "" 
   },
   {
     id: PremiumTier.BASIC,
@@ -277,7 +280,8 @@ export const TIERS = [
     linklyProductId: "prod_basic_tier",
     features: ["Adaptive Coach & Goal Navigation", "Voice Interaction (TTS/STT)", "Essential Memory Retention"],
     highlight: false,
-    stripeBuyButtonId: "buy_btn_basic_mock"
+    stripeBuyButtonId: "",
+    stripePriceId: "price_1P..." // REPLACE WITH YOUR STRIPE PRICE ID
   },
   {
     id: PremiumTier.PLUS,
@@ -287,7 +291,8 @@ export const TIERS = [
     linklyProductId: "prod_plus_tier",
     features: ["Shadow Twin (Blind Spot Detector)", "Psychological Defense Radar", "Full Pattern Analysis"],
     highlight: true,
-    stripeBuyButtonId: "buy_btn_plus_mock"
+    stripeBuyButtonId: "",
+    stripePriceId: "price_1P..." // REPLACE WITH YOUR STRIPE PRICE ID
   },
   {
     id: PremiumTier.MASTER,
@@ -297,6 +302,7 @@ export const TIERS = [
     linklyProductId: "prod_master_tier",
     features: ["Unlimited Memory Access", "Meta-Coach (Super-Synthesis Engine)", "Cognitive Distortion Tracker", "Therapist-Grade Reports", "Access to Coin Utility"],
     highlight: false,
-    stripeBuyButtonId: "buy_btn_master_mock"
+    stripeBuyButtonId: "",
+    stripePriceId: "price_1P..." // REPLACE WITH YOUR STRIPE PRICE ID
   }
 ];

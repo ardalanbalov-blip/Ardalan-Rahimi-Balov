@@ -12,15 +12,15 @@ export const INITIAL_TWIN_STATE = {
 export const TRIAL_DURATION_DAYS = 14;
 
 // NOTE: We access properties directly (e.g. import.meta.env.VITE_...) to ensure 
-// Vite can statically replace them during build. Dynamic access (env[key]) fails in production.
+// Vite can statically replace them during build.
 export const FIREBASE_CONFIG = {
-  apiKey: (import.meta as any).env?.VITE_FIREBASE_API_KEY || 'AIzaSyCNW7z0-ZzLbFVG0kn9XQOFMU4v-FFzBF0',
-  authDomain: (import.meta as any).env?.VITE_FIREBASE_AUTH_DOMAIN || 'aura-e0c49.firebaseapp.com',
-  projectId: (import.meta as any).env?.VITE_FIREBASE_PROJECT_ID || 'aura-e0c49',
-  storageBucket: (import.meta as any).env?.VITE_FIREBASE_STORAGE_BUCKET || 'aura-e0c49.appspot.com',
-  messagingSenderId: (import.meta as any).env?.VITE_FIREBASE_MESSAGING_SENDER_ID || '16375430386',
-  appId: (import.meta as any).env?.VITE_FIREBASE_APP_ID || '1:16375430386:web:a97c621aab38ee88c2a46b',
-  measurementId: (import.meta as any).env?.VITE_FIREBASE_MEASUREMENT_ID || 'G-H7JGV82Q48'
+  apiKey: (import.meta as any).env.VITE_FIREBASE_API_KEY || 'AIzaSyCNW7z0-ZzLbFVG0kn9XQOFMU4v-FFzBF0',
+  authDomain: (import.meta as any).env.VITE_FIREBASE_AUTH_DOMAIN || 'aura-e0c49.firebaseapp.com',
+  projectId: (import.meta as any).env.VITE_FIREBASE_PROJECT_ID || 'aura-e0c49',
+  storageBucket: (import.meta as any).env.VITE_FIREBASE_STORAGE_BUCKET || 'aura-e0c49.appspot.com',
+  messagingSenderId: (import.meta as any).env.VITE_FIREBASE_MESSAGING_SENDER_ID || '16375430386',
+  appId: (import.meta as any).env.VITE_FIREBASE_APP_ID || '1:16375430386:web:a97c621aab38ee88c2a46b',
+  measurementId: (import.meta as any).env.VITE_FIREBASE_MEASUREMENT_ID || 'G-H7JGV82Q48'
 };
 
 export const getTierValue = (tier: PremiumTier): number => {
@@ -188,7 +188,7 @@ export const t = (key: string): string => {
     if (value && typeof value === 'object' && k in value) {
       value = value[k];
     } else {
-      return key;
+      return key; // Fallback to key if missing
     }
   }
   

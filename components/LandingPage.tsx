@@ -37,8 +37,8 @@ const LandingPage: React.FC<Props> = ({ onLogin, onSelectPlan }) => {
         {/* Atmospheric Background */}
         <div className="absolute inset-0 pointer-events-none">
            {/* Deep Void Glows */}
-           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-violet-900/10 rounded-full blur-[120px] animate-pulse-slow" />
-           <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-indigo-900/5 rounded-full blur-[100px]" />
+           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-violet-900/10 rounded-full blur-[120px] animate-pulse-slow" />
+           <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-indigo-900/5 rounded-full blur-[100px]" />
            
            {/* Grain Overlay for Texture */}
            <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0IiBoZWlnaHQ9IjQiPgo8cmVjdCB3aWR0aD0iNCIgaGVpZ2h0PSI0IiBmaWxsPSIjMDAwIi8+CjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9InJnYmEoMjU1LDI1NSwyNTUsMC4xKSIvPgo8L3N2Zz4=')] mix-blend-overlay"></div>
@@ -51,8 +51,8 @@ const LandingPage: React.FC<Props> = ({ onLogin, onSelectPlan }) => {
               <div className="absolute w-32 h-32 bg-white/5 rounded-full blur-2xl animate-pulse" />
               
               {/* Rotating Rings */}
-              <div className="absolute inset-0 border border-violet-500/10 rounded-full scale-90 animate-[spin_10s_linear_infinite]" />
-              <div className="absolute inset-0 border border-indigo-500/10 rounded-full scale-110 animate-[spin_15s_linear_infinite_reverse]" />
+              <div className="absolute inset-0 border border-violet-800/10 rounded-full scale-40 animate-[spin_10s_linear_infinite]" />
+              <div className="absolute inset-0 border border-indigo-800/10 rounded-full scale-80 animate-[spin_15s_linear_infinite_reverse]" />
               <div className="absolute inset-0 border border-white/5 rounded-full scale-125 animate-pulse-slow" />
               
               {/* Inner Gradient Orb */}
@@ -83,10 +83,10 @@ const LandingPage: React.FC<Props> = ({ onLogin, onSelectPlan }) => {
              </button>
            </div>
         </div>
-
+        
         {/* Scroll Indicator */}
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-30">
-          <span className="text-[10px] uppercase tracking-widest">Scroll</span>
+          <span className="text-[10px] uppercase tracking-widest"></span>
           <div className="w-px h-12 bg-gradient-to-b from-white to-transparent" />
         </div>
 

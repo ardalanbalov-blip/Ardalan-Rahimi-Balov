@@ -1,8 +1,7 @@
-
 import React from 'react';
 import { TIERS } from '../constants';
 import { PremiumTier } from '../types';
-import { Check, ArrowRight, Brain, Zap, Activity, Shield, Sparkles } from 'lucide-react';
+import { Check, ArrowRight, Brain, Zap, Activity, Shield, Sparkles, ArrowDown, CheckCircle2 } from 'lucide-react';
 
 interface Props {
   onLogin: () => void;
@@ -32,7 +31,7 @@ const LandingPage: React.FC<Props> = ({ onLogin, onSelectPlan }) => {
       </nav>
 
       {/* MYSTIC HERO SECTION */}
-      <section className="relative h-screen flex flex-col items-center justify-center overflow-hidden">
+      <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden pt-20">
         
         {/* Atmospheric Background */}
         <div className="absolute inset-0 pointer-events-none">
@@ -45,7 +44,7 @@ const LandingPage: React.FC<Props> = ({ onLogin, onSelectPlan }) => {
         </div>
 
         {/* The "Aura" Centerpiece */}
-        <div className="relative z-10 mb-16">
+        <div className="relative z-10 mb-12 scale-90 md:scale-100 transition-transform duration-500">
            <div className="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center">
               {/* Core Light */}
               <div className="absolute w-32 h-32 bg-white/5 rounded-full blur-2xl animate-pulse" />
@@ -85,14 +84,13 @@ const LandingPage: React.FC<Props> = ({ onLogin, onSelectPlan }) => {
         </div>
         
         {/* Scroll Indicator */}
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-30">
-          <span className="text-[10px] uppercase tracking-widest"></span>
-          <div className="w-px h-12 bg-gradient-to-b from-white to-transparent" />
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-30 animate-bounce">
+          <ArrowDown size={20} className="text-white" />
         </div>
 
       </section>
 
-      {/* Features Grid - Minimalist Update */}
+      {/* Features Grid */}
       <section id="features" className="py-32 px-6 bg-[#050505] relative z-20 border-t border-white/5">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-24">
@@ -127,7 +125,7 @@ const LandingPage: React.FC<Props> = ({ onLogin, onSelectPlan }) => {
         </div>
       </section>
 
-      {/* Pricing Section - Dark Mode Polish */}
+      {/* Pricing Section - 4 Columns for Desktop */}
       <section id="pricing" className="py-32 px-6 bg-[#050505] relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0a0a0b] pointer-events-none" />
         
@@ -140,7 +138,7 @@ const LandingPage: React.FC<Props> = ({ onLogin, onSelectPlan }) => {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {TIERS.map((tier) => (
               <div 
                 key={tier.id}
@@ -165,9 +163,9 @@ const LandingPage: React.FC<Props> = ({ onLogin, onSelectPlan }) => {
                 </div>
 
                 <div className="flex-1 space-y-4 mb-10">
-                  {tier.features.map((feature, i) => (
+                  {tier.features.slice(0, 4).map((feature, i) => (
                     <div key={i} className="flex items-start gap-3">
-                      <Check size={14} className="text-violet-500 mt-1 flex-shrink-0" />
+                      <CheckCircle2 size={14} className="text-violet-500 mt-1 flex-shrink-0" />
                       <span className="text-sm text-zinc-400 font-light">{feature}</span>
                     </div>
                   ))}

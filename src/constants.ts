@@ -11,28 +11,16 @@ export const INITIAL_TWIN_STATE = {
 
 export const TRIAL_DURATION_DAYS = 14;
 
-// Safely access env variables with type casting for Vite/TS compatibility
-const getEnv = (key: string, fallback: string): string => {
-  try {
-    // @ts-ignore
-    const meta = import.meta as any;
-    if (meta && meta.env && meta.env[key]) {
-      return meta.env[key];
-    }
-  } catch (e) {
-    console.warn(`Error accessing env var ${key}`, e);
-  }
-  return fallback;
-};
-
+// NOTE: We access properties directly (e.g. import.meta.env.VITE_...) to ensure 
+// Vite can statically replace them during build. Dynamic access (env[key]) fails in production.
 export const FIREBASE_CONFIG = {
-  apiKey: getEnv('VITE_FIREBASE_API_KEY', 'AIzaSyCNW7z0-ZzLbFVG0kn9XQOFMU4v-FFzBF0'),
-  authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN', 'aura-e0c49.firebaseapp.com'),
-  projectId: getEnv('VITE_FIREBASE_PROJECT_ID', 'aura-e0c49'),
-  storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET', 'aura-e0c49.appspot.com'),
-  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID', '16375430386'),
-  appId: getEnv('VITE_FIREBASE_APP_ID', '1:16375430386:web:a97c621aab38ee88c2a46b'),
-  measurementId: getEnv('VITE_FIREBASE_MEASUREMENT_ID', 'G-H7JGV82Q48')
+  apiKey: (import.meta as any).env?.VITE_FIREBASE_API_KEY || 'AIzaSyCNW7z0-ZzLbFVG0kn9XQOFMU4v-FFzBF0',
+  authDomain: (import.meta as any).env?.VITE_FIREBASE_AUTH_DOMAIN || 'aura-e0c49.firebaseapp.com',
+  projectId: (import.meta as any).env?.VITE_FIREBASE_PROJECT_ID || 'aura-e0c49',
+  storageBucket: (import.meta as any).env?.VITE_FIREBASE_STORAGE_BUCKET || 'aura-e0c49.appspot.com',
+  messagingSenderId: (import.meta as any).env?.VITE_FIREBASE_MESSAGING_SENDER_ID || '16375430386',
+  appId: (import.meta as any).env?.VITE_FIREBASE_APP_ID || '1:16375430386:web:a97c621aab38ee88c2a46b',
+  measurementId: (import.meta as any).env?.VITE_FIREBASE_MEASUREMENT_ID || 'G-H7JGV82Q48'
 };
 
 export const getTierValue = (tier: PremiumTier): number => {
@@ -173,7 +161,6 @@ export const LOCALE_STRINGS = {
         personalization: { short: "Person.", full: "Personalization" }
       }
     },
-    // Feature keys for Tiers
     "Baseline Model": "Baseline Model",
     "Standard Chat": "Standard Chat",
     "Limited Memory": "Limited Memory",
@@ -191,21 +178,16 @@ export const LOCALE_STRINGS = {
   }
 };
 
-/**
- * Robust Translation Helper
- */
 export const t = (key: string): string => {
   if (!key) return "";
   const keys = key.split('.');
   
-  // Explicitly type value to handle traversal
   let value: any = LOCALE_STRINGS.en;
   
   for (const k of keys) {
     if (value && typeof value === 'object' && k in value) {
       value = value[k];
     } else {
-      // Return key as fallback if path not found
       return key;
     }
   }

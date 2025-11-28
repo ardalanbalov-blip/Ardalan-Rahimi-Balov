@@ -23,7 +23,7 @@ declare global {
 }
 
 const MODE_LIST = [
-  CoachingMode.BAvSELINE,
+  CoachingMode.BASELINE,
   CoachingMode.ADAPTIVE,
   CoachingMode.SHADOW,
   CoachingMode.FUTURE,

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ViewMode, AuthMode, UserState, Message, AppData, CoachingMode, PremiumTier, TwinState, PaymentMethod, ChatThread } from './types';
 import { APP_NAME, INITIAL_TWIN_STATE, MODE_CONFIG, t } from './constants';
@@ -551,7 +550,7 @@ const App = () => {
 
   return (
     <div className="flex h-[100dvh] bg-black text-white font-sans overflow-hidden">
-      {showPortal && data.user && <SubscriptionPortal user={data.user} onClose={() => setShowPortal(false)} onAction={handleSubscriptionAction} />}
+      {showPortal && data.user && <SubscriptionPortal user={data.user} onClose={() => setShowPortal(false)} onAction={handleSubscriptionAction} t={t} />}
       
       {/* DESKTOP SIDEBAR */}
       <aside className="hidden md:flex flex-col w-64 bg-zinc-950 border-r border-zinc-800 p-4">

@@ -3,9 +3,13 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "vite build",
+    "start": "node server.js",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
@@ -14,7 +18,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "firebase": "^10.12.2", 
-    "@google/genai": "^1.30.0"
+    "@google/genai": "^0.2.1",
+    "express": "^4.18.2"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
@@ -29,6 +34,7 @@
     "postcss": "^8.4.32",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.2.2",
-    "vite": "^5.0.8"
+    "vite": "^5.0.8",
+    "@types/node": "^20.11.0"
   }
 }

@@ -1,15 +1,16 @@
 import React from 'react';
 import { UserState, PremiumTier, SubscriptionStatus } from '../types';
 import { X, Clock, Zap, DollarSign, CreditCard } from 'lucide-react';
-import { TIERS, t } from '../constants';
+import { TIERS } from '../constants';
 
 interface SubscriptionPortalProps {
   user: UserState;
   onClose: () => void;
   onAction: (action: 'cancel' | 'resume' | 'update_payment' | 'change_plan_view') => void;
+  t: (key: string) => string;
 }
 
-const SubscriptionPortal: React.FC<SubscriptionPortalProps> = ({ user, onClose, onAction }) => {
+const SubscriptionPortal: React.FC<SubscriptionPortalProps> = ({ user, onClose, onAction, t }) => {
 
   const isTierActive = (tier: PremiumTier): boolean => {
     const userTierConfig = TIERS.find(t => t.id === user.tier);

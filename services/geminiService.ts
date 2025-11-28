@@ -1,5 +1,5 @@
 import { GoogleGenAI, GenerateContentParameters, GenerateContentResponse, Content, Part } from '@google/genai';
-import { Message, CoachingMode, TwinState, Insight, Memory, UserSignal } from '../types';
+import { Message, CoachingMode, TwinState, DailyInsight as Insight, CoreMemory as Memory, SignalPackage as UserSignal } from '../types';
 import { MODE_CONFIG, INITIAL_TWIN_STATE } from '../constants';
 
 
@@ -26,6 +26,18 @@ const toGeminiContent = (messages: Message[]): Content[] => {
     }));
 };
 
+const runBackoffFetch = async <T>(fn: () => Promise<T>, retries = 3, delay = 1000): Promise<T> => {
+    try {
+        return await fn();
+    } catch (error) {
+        if (retries > 0) {
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return runBackoffFetch(fn, retries - 1, delay * 2);
+        }
+        throw error;
+    }
+};
+
 // --- GEMINI PROMPT DEFINITIONS ---
 
 // Systeminstruktion för den primära chatt-responsen.
@@ -40,7 +52,7 @@ const getSystemInstruction = (mode: CoachingMode, userName: string, insights: In
         Användarens namn är: ${userName}.
         
         Din ton och fokus måste matcha den nuvarande coachningsläget:
-        - **Modus Mål:** ${config.systemPrompt}
+        - **Modus Mål:** ${config.prompt}
         - **Personlighet/Ton:** Kortfattad, empatisk och reflekterande.
         - **Svarets Längd:** Svara kortfattat, max 3-5 meningar. Ställ EN uppföljningsfråga vid behov.
         
@@ -111,7 +123,7 @@ export const generateTwinResponse = async (
 
 export const preprocessUserSignal = async (userText: string, context: string): Promise<UserSignal> => {
     // ... (Implementering)
-    return { detectedLanguage: 'sv' }; // Mockad retur för att undvika beroendefel i App.tsx
+    return { detectedLanguage: 'sv' } as any; // Mockad retur för att undvika beroendefel i App.tsx
 };
 
 export const generateInitialTelemetry = async (history: Message[], userName: string, signal: UserSignal): Promise<Insight[]> => {

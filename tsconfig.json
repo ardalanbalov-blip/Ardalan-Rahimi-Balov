@@ -4,8 +4,7 @@
     "useDefineForClassFields": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    // VIKTIGT FIX: Använd "node" eller "bundler" för kompatibilitet med Vite
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "strict": true,
     "jsx": "react-jsx",
     "sourceMap": true, 
@@ -27,8 +26,5 @@
     }
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
-  "references": [
-    // VIKTIGT FIX: Ta bort referensen till tsconfig.node.json som saknas i repot.
-    // Låter Vite hantera build-specifika konfigurationer.
-  ]
+  "references": []
 }

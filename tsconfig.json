@@ -1,0 +1,15 @@
+// aura/tsconfig.json (utdrag)
+{
+  "compilerOptions": {
+    // ...
+    "moduleResolution": "bundler",
+    // ...
+    "baseUrl": ".", // <<-- MÅSTE VARA HÄR
+    "paths": {
+      "@/*": ["./src/*"] // <<-- MÅSTE VARA HÄR
+    },
+    // ...
+  },
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}

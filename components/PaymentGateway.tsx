@@ -2,6 +2,20 @@ import React, { useState } from 'react';
 import { PremiumTier, UserState, PaymentMethod } from '../types';
 import { TIERS } from '../constants';
 
+// Add declaration for custom element to fix TypeScript error
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'stripe-buy-button': React.DetailedHTMLProps<React.HTMLAttributes<HTMLElement>, HTMLElement> & {
+        'buy-button-id': string;
+        'publishable-key': string;
+        'client-reference-id': string;
+        'customer-email'?: string;
+      };
+    }
+  }
+}
+
 interface PaymentGatewayProps {
   selectedTier: PremiumTier;
   userId: string;

@@ -162,8 +162,8 @@ export const TIERS = [
   {
     id: PremiumTier.BASIC,
     name: "Basic",
-    price: "$9.99/mo",
-    amount: 999,
+    price: "$4.99/mo",
+    amount: 5,
     linklyProductId: "prod_basic_tier",
     features: ["Adaptive Coach & Goal Navigation", "Voice Interaction (TTS/STT)", "Essential Memory Retention"],
     highlight: false,
@@ -172,8 +172,8 @@ export const TIERS = [
   {
     id: PremiumTier.PLUS,
     name: "Plus",
-    price: "$19.99/mo",
-    amount: 1999,
+    price: "$7.99/mo",
+    amount: 15,
     linklyProductId: "prod_plus_tier",
     features: ["Shadow Twin (Blind Spot Detector)", "Psychological Defense Radar", "Full Pattern Analysis", "Unlimited Memory Access"],
     highlight: true,
@@ -182,8 +182,8 @@ export const TIERS = [
   {
     id: PremiumTier.MASTER,
     name: "Master",
-    price: "$39.99/mo",
-    amount: 3999,
+    price: "$14.99/mo",
+    amount: 15,
     linklyProductId: "prod_master_tier",
     features: ["Meta-Coach (Super-Synthesis Engine)", "Cognitive Distortion Tracker", "Therapist-Grade Reports", "Access to Coin Utility"],
     highlight: false,

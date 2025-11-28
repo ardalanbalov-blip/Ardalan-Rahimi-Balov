@@ -1,15 +1,34 @@
-// aura/tsconfig.json (utdrag)
 {
   "compilerOptions": {
-    // ...
-    "moduleResolution": "bundler",
-    // ...
-    "baseUrl": ".", // <<-- MÅSTE VARA HÄR
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    // VIKTIGT FIX: Använd "node" eller "bundler" för kompatibilitet med Vite
+    "moduleResolution": "node",
+    "strict": true,
+    "jsx": "react-jsx",
+    "sourceMap": true, 
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    
+    // Type checking options
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    
+    // Paths
+    "baseUrl": "./",
     "paths": {
-      "@/*": ["./src/*"] // <<-- MÅSTE VARA HÄR
-    },
-    // ...
+      "@/*": ["src/*"]
+    }
   },
-  "include": ["src"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
+  "references": [
+    // VIKTIGT FIX: Ta bort referensen till tsconfig.node.json som saknas i repot.
+    // Låter Vite hantera build-specifika konfigurationer.
+  ]
 }

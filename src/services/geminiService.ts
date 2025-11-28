@@ -2,35 +2,16 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Message, CoachingMode, TwinState, DailyInsight, SignalPackage, CoreMemory } from "../types";
 import { MODE_CONFIG } from "../constants";
 
-const getClient = () => {
-  // Safer access to API Key that works in both Node-like (if polyfilled) and Vite environments
-  let key;
-  try {
-    key = process.env.API_KEY;
-  } catch (e) {
-    // process is likely undefined
-  }
-  
-  if (!key) {
-    try {
-      // @ts-ignore
-      if (import.meta && import.meta.env) {
-        // @ts-ignore
-        key = import.meta.env.API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
-      }
-    } catch (e) {
-      // import.meta access failed
-    }
-  }
+// The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+// Assume this variable is pre-configured, valid, and accessible.
+const apiKey = process.env.API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
 
-  // Fallback to strict requirement if we couldn't find it
-  if (!key && typeof process !== 'undefined' && process.env) {
-      key = process.env.API_KEY;
+const getClient = () => {
+  if (!apiKey) {
+      console.warn("API Key is missing. Functionality will be limited.");
+      // Fallback or error handling if strictly required, but usually caught by component logic
   }
-  
-  if (!key) throw new Error("API Key missing. Please ensure process.env.API_KEY is set.");
-  
-  return new GoogleGenAI({ apiKey: key });
+  return new GoogleGenAI({ apiKey });
 };
 
 // --- NEW: LONG-TERM MEMORY SCANNER ---

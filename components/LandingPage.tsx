@@ -140,7 +140,7 @@ const LandingPage: React.FC<Props> = ({ onLogin, onSelectPlan }) => {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-4 gap-6 max-w-6xl mx-auto">
             {TIERS.map((tier) => (
               <div 
                 key={tier.id}

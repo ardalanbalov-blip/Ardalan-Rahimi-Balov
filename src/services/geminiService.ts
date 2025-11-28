@@ -3,16 +3,8 @@ import { Message, CoachingMode, TwinState, DailyInsight, SignalPackage, CoreMemo
 import { MODE_CONFIG } from "../constants";
 
 // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
-// Assume this variable is pre-configured, valid, and accessible.
-const apiKey = process.env.API_KEY || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
-
-const getClient = () => {
-  if (!apiKey) {
-      console.warn("API Key is missing. Functionality will be limited.");
-      // Fallback or error handling if strictly required, but usually caught by component logic
-  }
-  return new GoogleGenAI({ apiKey });
-};
+// This variable is injected automatically in the execution environment.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // --- NEW: LONG-TERM MEMORY SCANNER ---
 export const scanForCoreMemories = async (
@@ -20,7 +12,6 @@ export const scanForCoreMemories = async (
   existingMemories: CoreMemory[]
 ): Promise<CoreMemory | null> => {
   try {
-    const client = getClient();
     const prompt = `
       Analyze this user input for LONG-TERM MEMORY value.
       User said: "${input}"
@@ -34,7 +25,7 @@ export const scanForCoreMemories = async (
       Return JSON or null if unimportant (score < 7).
     `;
 
-    const response = await client.models.generateContent({
+    const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
@@ -71,7 +62,6 @@ export const scanForCoreMemories = async (
 
 export const preprocessUserSignal = async (text: string, historyContext: string): Promise<SignalPackage> => {
   try {
-    const client = getClient();
     const prompt = `
       Analyze user message. Context: ${historyContext.slice(-200)}. Message: "${text}"
       1. Detect the language code strictly from this list: 'en', 'sv', 'fr', 'de', 'es', 'zh'. If unknown, default to 'en'.
@@ -79,7 +69,7 @@ export const preprocessUserSignal = async (text: string, historyContext: string)
       Return JSON.
     `;
 
-    const response = await client.models.generateContent({
+    const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
@@ -136,8 +126,6 @@ export const generateTwinResponse = async (
   memories: CoreMemory[] = []
 ): Promise<string> => {
   try {
-    const client = getClient();
-    
     let systemInstruction = `User Name: ${userName}. ` + MODE_CONFIG[mode].prompt;
 
     if (signal) {
@@ -164,7 +152,7 @@ export const generateTwinResponse = async (
       Respond strictly in character.
     `;
 
-    const response = await client.models.generateContent({
+    const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
@@ -186,7 +174,6 @@ export const analyzeTwinState = async (
   signal?: SignalPackage
 ): Promise<{ twinState: TwinState; insight: DailyInsight | null }> => {
   try {
-    const client = getClient();
     if (history.length < 2) return { twinState: { mood: 'neutral', energy: 50, coherence: 50 }, insight: null };
 
     const conversationText = history.slice(-20).map(m => `${m.role}: ${m.text}`).join('\n');
@@ -207,7 +194,7 @@ export const analyzeTwinState = async (
       ${conversationText}
     `;
 
-    const response = await client.models.generateContent({
+    const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: {

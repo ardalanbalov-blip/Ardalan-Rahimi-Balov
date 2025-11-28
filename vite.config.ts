@@ -5,11 +5,23 @@ import { fileURLToPath, URL } from 'node:url';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  
-  // FIX: Mappar aliaset '@' till roten av applikationsmappen (./aura/)
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./', import.meta.url))
+    }
+  },
+  build: {
+    rollupOptions: {
+      external: [
+        'react',
+        'react-dom',
+        '@google/genai',
+        'recharts',
+        'lucide-react',
+        'firebase/app',
+        'firebase/auth',
+        'firebase/firestore'
+      ]
     }
   }
 });

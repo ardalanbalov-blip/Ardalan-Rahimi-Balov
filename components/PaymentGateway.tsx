@@ -2,6 +2,14 @@ import React, { useState } from 'react';
 import { PremiumTier, UserState, PaymentMethod } from '../types';
 import { TIERS } from '../constants';
 
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'stripe-buy-button': any;
+    }
+  }
+}
+
 interface PaymentGatewayProps {
   selectedTier: PremiumTier;
   userId: string;

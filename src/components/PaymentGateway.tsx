@@ -3,6 +3,14 @@ import { PremiumTier, PaymentMethod } from '../types';
 import { TIERS, t } from '../constants';
 import { Shield, CheckCircle, ArrowLeft } from 'lucide-react';
 
+declare global {
+  namespace JSX {
+    interface IntrinsicElements {
+      'stripe-buy-button': any;
+    }
+  }
+}
+
 interface Props {
   selectedTier: PremiumTier;
   userId: string;

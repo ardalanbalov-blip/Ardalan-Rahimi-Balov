@@ -15,7 +15,8 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       // Ensure API_KEY falls back to empty string if undefined to avoid "process.env.API_KEY is undefined" crashes
-      'process.env.API_KEY': JSON.stringify(env.API_KEY || process.env.API_KEY || ''),
+      // Checks env.API_KEY, env.VITE_GEMINI_API_KEY, then system env
+      'process.env.API_KEY': JSON.stringify(env.API_KEY || env.VITE_GEMINI_API_KEY || process.env.API_KEY || ''),
       // Polyfill process.env for other libraries if needed
       'process.env': {}
     },

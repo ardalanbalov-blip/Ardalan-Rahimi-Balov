@@ -280,8 +280,8 @@ export const TIERS = [
     linklyProductId: "prod_basic_tier",
     features: ["Adaptive Coach & Goal Navigation", "Voice Interaction (TTS/STT)", "Essential Memory Retention"],
     highlight: false,
-    stripeBuyButtonId: "",
-    stripePriceId: "price_1P..." // REPLACE WITH YOUR STRIPE PRICE ID
+    stripeBuyButtonId: "buy_btn_1SXUjg0Fx05CFKF9QA8Q9VEc",
+    stripePriceId: "price_1SXUYE0Fx05CFKF9IwxMP46y" // REPLACE WITH YOUR STRIPE PRICE ID
   },
   {
     id: PremiumTier.PLUS,
@@ -291,8 +291,8 @@ export const TIERS = [
     linklyProductId: "prod_plus_tier",
     features: ["Shadow Twin (Blind Spot Detector)", "Psychological Defense Radar", "Full Pattern Analysis"],
     highlight: true,
-    stripeBuyButtonId: "",
-    stripePriceId: "price_1P..." // REPLACE WITH YOUR STRIPE PRICE ID
+    stripeBuyButtonId: "buy_btn_1SXUit0Fx05CFKF9aaMtd5RO",
+    stripePriceId: "price_1SXUZl0Fx05CFKF919Yom6Y8" // REPLACE WITH YOUR STRIPE PRICE ID
   },
   {
     id: PremiumTier.MASTER,
@@ -302,7 +302,7 @@ export const TIERS = [
     linklyProductId: "prod_master_tier",
     features: ["Unlimited Memory Access", "Meta-Coach (Super-Synthesis Engine)", "Cognitive Distortion Tracker", "Therapist-Grade Reports", "Access to Coin Utility"],
     highlight: false,
-    stripeBuyButtonId: "",
-    stripePriceId: "price_1P..." // REPLACE WITH YOUR STRIPE PRICE ID
+    stripeBuyButtonId: "buy_btn_1SXUeu0Fx05CFKF9zlm7uDur",
+    stripePriceId: "price_1SXUaW0Fx05CFKF94mIlr3q1" // REPLACE WITH YOUR STRIPE PRICE ID
   }
 ];

@@ -8,9 +8,20 @@ let aiInstance: GoogleGenAI | null = null;
 
 const getAi = (): GoogleGenAI => {
   if (!aiInstance) {
-    // process.env.API_KEY is injected by Vite. Default to empty string to prevent undefined issues,
-    // though the SDK will likely throw an error if the key is invalid when used.
-    const apiKey = process.env.API_KEY || '';
+    // Attempt to resolve API Key from multiple potential sources
+    // 1. process.env.API_KEY (injected via Vite define)
+    // 2. import.meta.env.VITE_GEMINI_API_KEY (standard Vite)
+    // 3. import.meta.env.VITE_API_KEY (fallback)
+    const apiKey = process.env.API_KEY || 
+                   (import.meta as any).env.VITE_GEMINI_API_KEY || 
+                   (import.meta as any).env.VITE_API_KEY || 
+                   '';
+
+    if (!apiKey) {
+      console.error("CRITICAL: Gemini API Key is missing. Please ensure API_KEY or VITE_GEMINI_API_KEY is set in your .env file or build configuration.");
+      // We return a dummy instance or let it throw naturally, but logging above helps debugging.
+    }
+    
     aiInstance = new GoogleGenAI({ apiKey });
   }
   return aiInstance;
@@ -65,7 +76,7 @@ export const scanForCoreMemories = async (
     }
     return null;
   } catch (e) {
-    console.error("Memory Scan Error", e);
+    // console.error("Memory Scan Error", e); // Suppress log spam for common scan failures
     return null;
   }
 };
@@ -172,7 +183,10 @@ export const generateTwinResponse = async (
     });
 
     return response.text || "I am processing...";
-  } catch (error) {
+  } catch (error: any) {
+    if (error.message?.includes('API key')) {
+      return "System Error: Neural core missing valid authorization key. Please check configuration.";
+    }
     console.error("Gemini Chat Error:", error);
     return "Neural core connection interrupted. Retrying...";
   }

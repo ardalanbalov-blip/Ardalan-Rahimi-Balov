@@ -5,14 +5,14 @@ import { generateTwinResponse, analyzeTwinState, preprocessUserSignal, generateI
 import { billingApi } from './services/billingApi';
 import { dbService } from './services/dbService';
 import { authService } from './services/authService';
-import TwinAvatar from 'components/TwinAvatar';
-import InsightsDashboard from 'components/InsightsDashboard';
-import Marketplace from 'components/Marketplace';
-import LandingPage from 'components/LandingPage';
-import Auth from 'components/Auth';
-import PaymentGateway from 'components/PaymentGateway';
-import SubscriptionPortal from 'components/SubscriptionPortal';
-import MarketingBanner from 'components/MarketingBanner';
+import TwinAvatar from './components/TwinAvatar';
+import InsightsDashboard from './components/InsightsDashboard';
+import Marketplace from './components/Marketplace';
+import LandingPage from './components/LandingPage';
+import Auth from './components/Auth';
+import PaymentGateway from './components/PaymentGateway';
+import SubscriptionPortal from './components/SubscriptionPortal';
+import MarketingBanner from './components/MarketingBanner';
 import { MessageSquare, BarChart2, Send, LogOut, Activity, Eye, Zap, Brain, Hash, Layers, User, Volume2, VolumeX, Coins, Lock, Mic, MicOff, Clock, Search, X } from 'lucide-react';
 
 declare global {

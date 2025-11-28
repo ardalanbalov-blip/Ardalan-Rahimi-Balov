@@ -1,0 +1,39 @@
+name: Deploy to Firebase Hosting on PR
+
+on:
+  pull_request:
+    branches:
+      - main # Byt till din primära gren om det behövs (t.ex. 'master' eller 'production')
+
+jobs:
+  build_and_preview:
+    if: '${{ github.event.pull_request.head.repo.full_name == github.repository }}'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20' # Använd Node.js v20 eller senare
+
+      # Steg 1: Installera beroenden och Bygg projektet
+      # Måste navigera in i 'aura' där package.json ligger.
+      - name: Install dependencies and Build (Aura Subdirectory)
+        run: |
+          cd aura
+          npm install
+          npm run build
+      
+      # Steg 2: Deploy till Firebase Hosting (för preview)
+      - name: Deploy to Firebase Hosting Preview
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          # VIKTIGT: Du MÅSTE byta ut "YOUR_FIREBASE_SERVICE_ACCOUNT_SECRET" nedan
+          # mot namnet på din Firebase Service Account Secret (som skapades automatiskt på GitHub)
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_AURA_E0C49 }}' 
+          projectId: aura-e0c49 
+          channelId: live
+          target: aura # Används om du har flera hosting-sajter i projektet

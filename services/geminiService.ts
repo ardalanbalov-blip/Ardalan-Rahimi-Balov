@@ -1,7 +1,7 @@
 import { GoogleGenAI, GenerateContentParameters, GenerateContentResponse, Content, Part } from '@google/genai';
 import { Message, CoachingMode, TwinState, Insight, Memory, UserSignal } from '../types';
 import { MODE_CONFIG, INITIAL_TWIN_STATE } from '../constants';
-import { runBackoffFetch } from './utils';
+
 
 // Deklarera global variabel för Gemini API Key
 declare const __gemini_api_key: string | undefined;

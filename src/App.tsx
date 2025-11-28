@@ -5,7 +5,7 @@ import { generateTwinResponse, analyzeTwinState, preprocessUserSignal, generateI
 import { billingApi } from './services/billingApi';
 import { dbService } from './services/dbService';
 import { authService } from './services/authService';
-import TwinAvatar from './components/TwinAvatar';
+import TwinAvatar from '../components/TwinAvatar';
 import InsightsDashboard from './components/InsightsDashboard';
 import Marketplace from './components/Marketplace';
 import LandingPage from './components/LandingPage';

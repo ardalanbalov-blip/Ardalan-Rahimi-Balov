@@ -2,14 +2,6 @@ import React, { useState } from 'react';
 import { PremiumTier, UserState, PaymentMethod } from '../types';
 import { TIERS } from '../constants';
 
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'stripe-buy-button': any;
-    }
-  }
-}
-
 interface PaymentGatewayProps {
   selectedTier: PremiumTier;
   userId: string;
@@ -21,6 +13,9 @@ interface PaymentGatewayProps {
 
 const PaymentGateway: React.FC<PaymentGatewayProps> = ({ selectedTier, userId, userEmail, onSuccess, onBack, t }) => {
   const [error, setError] = useState<string | null>(null);
+
+  // Workaround for TypeScript error with custom element
+  const StripeBuyButton = 'stripe-buy-button' as any;
 
   const tierConfig = TIERS.find(t => t.id === selectedTier);
 
@@ -62,7 +57,7 @@ const PaymentGateway: React.FC<PaymentGatewayProps> = ({ selectedTier, userId, u
           <p className="text-zinc-300 mb-4 text-center">{t('common.secure')}</p>
           
           {/* STRIPE BUY BUTTON WEB COMPONENT */}
-          <stripe-buy-button
+          <StripeBuyButton
             buy-button-id={tierConfig.stripeBuyButtonId}
             publishable-key={(import.meta as any).env.VITE_STRIPE_PK || 'pk_test_PLACEHOLDER_PUBLISHABLE_KEY'} // Hämta från ENV
             client-reference-id={userId} // KRITISKT: Används i Webhooks för att identifiera användaren

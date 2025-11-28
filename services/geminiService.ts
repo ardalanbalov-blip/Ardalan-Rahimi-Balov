@@ -3,15 +3,7 @@ import { Message, CoachingMode, TwinState, DailyInsight as Insight, CoreMemory a
 import { MODE_CONFIG, INITIAL_TWIN_STATE } from '../constants';
 
 
-// Deklarera global variabel för Gemini API Key
-declare const __gemini_api_key: string | undefined;
-
-// Initialisera Gemini AI Client
-const apiKey = typeof __gemini_api_key === 'string' && __gemini_api_key.length > 0
-    ? __gemini_api_key
-    : ''; // Anta att Canvas tillhandahåller denna
-
-const ai = new GoogleGenAI({ apiKey });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const model = "gemini-2.5-flash"; // Använd en snabb och effektiv modell
 
 /**

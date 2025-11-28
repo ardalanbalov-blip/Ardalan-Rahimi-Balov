@@ -1,5 +1,7 @@
 {
   "name": "Aura ",
   "description": "A self-learning AI companion that mirrors your personality, predicts behavior, and offers deep psychological insights through multiple coaching modes.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }

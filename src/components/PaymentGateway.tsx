@@ -3,14 +3,6 @@ import { PremiumTier, PaymentMethod } from '../types';
 import { TIERS, t } from '../constants';
 import { Shield, CheckCircle, ArrowLeft } from 'lucide-react';
 
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'stripe-buy-button': any;
-    }
-  }
-}
-
 interface Props {
   selectedTier: PremiumTier;
   userId: string;
@@ -21,6 +13,9 @@ interface Props {
 
 const PaymentGateway: React.FC<Props> = ({ selectedTier, userId, userEmail, onSuccess, onBack }) => {
   const tierDetails = TIERS.find(t => t.id === selectedTier);
+
+  // Workaround for TypeScript error with custom element
+  const StripeBuyButton = 'stripe-buy-button' as any;
 
   useEffect(() => {
     const script = document.createElement('script');
@@ -102,13 +97,13 @@ const PaymentGateway: React.FC<Props> = ({ selectedTier, userId, userEmail, onSu
               <h3 className="text-lg font-medium text-white mb-6">{t('marketplace.buy')}</h3>
               
               <div className="flex justify-center">
-                <stripe-buy-button
+                <StripeBuyButton
                   buy-button-id={tierDetails.stripeBuyButtonId}
                   publishable-key={publishableKey}
                   client-reference-id={userId}
                   customer-email={userEmail}
                 >
-                </stripe-buy-button>
+                </StripeBuyButton>
               </div>
             </div>
           ) : (

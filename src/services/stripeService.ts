@@ -1,5 +1,6 @@
 
-import { getStripePayments, createCheckoutSession, createPortalLink } from '@stripe/firestore-stripe-payments';
+import { getStripePayments, createCheckoutSession } from '@stripe/firestore-stripe-payments';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from './firebase';
 import { PremiumTier } from '../types';
 import { TIERS } from '../constants';
@@ -40,14 +41,18 @@ export const startCheckout = async (tier: PremiumTier) => {
 
 /**
  * Redirects the user to the Stripe Customer Portal to manage subscriptions.
- * Uses the extension's callable function.
+ * Uses the extension's callable function via Firebase Functions.
  */
 export const goToPortal = async () => {
+  // Use the region specified in your extension configuration (europe-west3 based on your previous logs)
+  const functions = getFunctions(app, 'europe-west3');
+  const functionRef = httpsCallable(functions, 'ext-firestore-stripe-payments-createPortalLink');
+  
   try {
-    const { url } = await createPortalLink(payments, {
+    const { data }: any = await functionRef({
       returnUrl: window.location.origin,
     });
-    window.location.assign(url);
+    window.location.assign(data.url);
   } catch (error: any) {
     console.error("Stripe Portal Error:", error);
     throw new Error(error.message || "Failed to access subscription portal.");

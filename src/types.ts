@@ -182,11 +182,3 @@ export interface AppData {
   twinState: TwinState;
   rentalAccess: Record<string, number>; // Map of Mode ID to Expiry Timestamp
 }
-
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      'stripe-buy-button': any;
-    }
-  }
-}

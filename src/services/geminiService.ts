@@ -1,63 +1,71 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Message, CoachingMode, TwinState, DailyInsight, SignalPackage, CoreMemory } from "../types";
-import { MODE_CONFIG, GEMINI_API_KEY } from "../constants";
+import { MODE_CONFIG, GEMINI_API_KEY, INITIAL_TWIN_STATE } from "../constants";
 
-// Lazy initialization to prevent crash on load if API key is missing.
+// Singleton instance
 let aiInstance: GoogleGenAI | null = null;
+let isMockMode = false;
 
-const getAi = (): GoogleGenAI => {
-  if (!aiInstance) {
-    // Attempt to resolve API Key
-    // We strictly use the GEMINI_API_KEY defined in constants which pulls from VITE_GEMINI_API_KEY or env.API_KEY
-    // We do NOT fallback to Firebase config as the user requested separation.
-    
-    const apiKey = GEMINI_API_KEY;
+// Initialize or retrieve the AI instance
+const getAi = (): GoogleGenAI | null => {
+  if (isMockMode) return null;
+  if (aiInstance) return aiInstance;
 
-    if (!apiKey || apiKey.length === 0 || apiKey === '""') {
-      console.error("CRITICAL ERROR: Gemini API Key is missing. Please check VITE_GEMINI_API_KEY.");
-      throw new Error("API key is missing.");
+  // 1. Check if Key exists at all
+  const apiKey = GEMINI_API_KEY;
+
+  // 2. Basic Validation
+  if (!apiKey || apiKey.length < 10 || apiKey.includes("PLACEHOLDER") || apiKey === '""') {
+    if (!isMockMode) {
+      console.warn("⚠️ Gemini API Key missing/invalid in constants. Switching to Mock AI Mode.");
+      isMockMode = true;
     }
-    
-    aiInstance = new GoogleGenAI({ apiKey });
+    return null;
   }
-  return aiInstance;
+    
+  try {
+    aiInstance = new GoogleGenAI({ apiKey });
+    return aiInstance;
+  } catch (e) {
+    console.error("Error initializing GoogleGenAI client:", e);
+    isMockMode = true;
+    return null;
+  }
 };
 
-// --- NEW: LONG-TERM MEMORY SCANNER ---
+// Helper to handle API errors gracefully
+const handleGeminiError = (error: any, context: string) => {
+  console.error(`Gemini Error (${context}):`, error);
+  
+  // If the SDK throws an API Key error, force Mock Mode for future calls
+  if (error.message?.includes('API key') || error.toString().includes('API key')) {
+    console.warn("⚠️ Invalid API Key detected during request. forcing Mock Mode.");
+    isMockMode = true;
+    aiInstance = null;
+  }
+};
+
+// --- SCAN FOR MEMORIES ---
 export const scanForCoreMemories = async (
   input: string, 
   existingMemories: CoreMemory[]
 ): Promise<CoreMemory | null> => {
+  const ai = getAi();
+  if (!ai) return null; 
+
   try {
-    const ai = getAi();
     const prompt = `
-      Analyze this user input for LONG-TERM MEMORY value.
-      User said: "${input}"
-
-      Does this contain a significant fact, preference, life milestone, or deep emotional truth?
-      Score importance 1-10. Ignore trivial chat.
-      
-      Existing Memories (avoid duplicates):
-      ${existingMemories.map(m => m.content).join('; ')}
-
-      Return JSON or null if unimportant (score < 7).
+      Analyze for LONG-TERM MEMORY. User said: "${input}"
+      Score importance 1-10. Ignore trivial.
+      Existing: ${existingMemories.map(m => m.content).join('; ')}
+      Return JSON: { isMemory: boolean, content: string, category: 'emotional'|'fact'|'preference'|'milestone', importance: number }
     `;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            isMemory: { type: Type.BOOLEAN },
-            content: { type: Type.STRING },
-            category: { type: Type.STRING, enum: ['emotional', 'fact', 'preference', 'milestone'] },
-            importance: { type: Type.INTEGER }
-          }
-        }
-      }
+      config: { responseMimeType: "application/json" }
     });
 
     const data = JSON.parse(response.text || "{}");
@@ -73,18 +81,31 @@ export const scanForCoreMemories = async (
     }
     return null;
   } catch (e) {
-    // Fail silently for memory scans to avoid interrupting the main flow
-    console.warn("Memory scan skipped:", e);
+    handleGeminiError(e, "scanForCoreMemories");
     return null;
   }
 };
 
 export const preprocessUserSignal = async (text: string, historyContext: string): Promise<SignalPackage> => {
+  const ai = getAi();
+  
+  if (!ai) {
+    return {
+      emotion: 'neutral',
+      intensity: 50,
+      intent: 'neutral',
+      hiddenMeaning: 'Mock Mode - Signal Analysis Disabled',
+      contradictionScore: 0,
+      stressMarker: false,
+      topics: [],
+      detectedLanguage: 'en'
+    };
+  }
+
   try {
-    const ai = getAi();
     const prompt = `
-      Analyze user message. Context: ${historyContext.slice(-200)}. Message: "${text}"
-      1. Detect the language code strictly from this list: 'en', 'sv', 'fr', 'de', 'es', 'zh'. If unknown, default to 'en'.
+      Analyze user message: "${text}"
+      1. Detect language ('en', 'sv', 'fr', 'de', 'es', 'zh'). Default 'en'.
       2. Detect emotion, intent, hidden meaning. 
       Return JSON.
     `;
@@ -92,22 +113,7 @@ export const preprocessUserSignal = async (text: string, historyContext: string)
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            detectedLanguage: { type: Type.STRING },
-            emotion: { type: Type.STRING },
-            intensity: { type: Type.INTEGER },
-            intent: { type: Type.STRING, enum: ['venting', 'planning', 'avoidance', 'fear', 'ambition', 'reflection', 'confusion', 'neutral'] },
-            hiddenMeaning: { type: Type.STRING },
-            contradictionScore: { type: Type.INTEGER },
-            stressMarker: { type: Type.BOOLEAN },
-            topics: { type: Type.ARRAY, items: { type: Type.STRING } }
-          }
-        }
-      }
+      config: { responseMimeType: "application/json" }
     });
 
     const data = JSON.parse(response.text || "{}");
@@ -122,12 +128,12 @@ export const preprocessUserSignal = async (text: string, historyContext: string)
       detectedLanguage: data.detectedLanguage || 'en'
     };
   } catch (e) {
-    console.warn("Signal processing skipped:", e);
+    handleGeminiError(e, "preprocessUserSignal");
     return {
       emotion: 'neutral',
       intensity: 50,
       intent: 'neutral',
-      hiddenMeaning: '',
+      hiddenMeaning: 'Analysis failed',
       contradictionScore: 0,
       stressMarker: false,
       topics: [],
@@ -136,7 +142,7 @@ export const preprocessUserSignal = async (text: string, historyContext: string)
   }
 };
 
-// --- CORE CHAT GENERATION WITH MEMORY INJECTION ---
+// --- GENERATE RESPONSE ---
 export const generateTwinResponse = async (
   currentMessage: string,
   history: Message[],
@@ -146,49 +152,32 @@ export const generateTwinResponse = async (
   signal?: SignalPackage,
   memories: CoreMemory[] = []
 ): Promise<string> => {
-  try {
-    const ai = getAi();
-    let systemInstruction = `User Name: ${userName}. ` + MODE_CONFIG[mode].prompt;
+  const ai = getAi();
 
-    if (signal) {
-      systemInstruction += `\n\nSIGNAL ANALYSIS:\nUser Intent: ${signal.intent}\nLatent Emotion: ${signal.hiddenMeaning}`;
-      if (signal.detectedLanguage) {
-        systemInstruction += `\n\nIMPORTANT: You must respond exclusively in the detected language code: "${signal.detectedLanguage}".`;
-      }
-    }
-
-    if (memories.length > 0) {
-      const topMemories = [...memories].sort((a, b) => b.importance - a.importance).slice(0, 3);
-      systemInstruction += `\n\nCORE MEMORIES (Things you know about the user):\n${topMemories.map(m => `- [${m.category.toUpperCase()}] ${m.content}`).join('\n')}`;
-    }
-
-    const context = history.slice(-15).map(m => `${m.role}: ${m.text}`).join('\n');
+  if (!ai) {
+    return `[MOCK MODE] I see you said: "${currentMessage}". 
     
-    const prompt = `
-      Context:
-      ${context}
+    My neural core is currently offline (API Key Missing/Invalid). 
+    Please configure VITE_GEMINI_API_KEY in your environment to unlock my full intelligence.`;
+  }
 
-      User Input: "${currentMessage}"
-      
-      Respond strictly in character.
-    `;
+  try {
+    let systemInstruction = `User Name: ${userName}. ` + MODE_CONFIG[mode].prompt;
+    if (signal?.detectedLanguage) systemInstruction += ` Respond in ${signal.detectedLanguage}.`;
+
+    const context = history.slice(-10).map(m => `${m.role}: ${m.text}`).join('\n');
+    const prompt = `Context:\n${context}\nUser: "${currentMessage}"\nRespond in character.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
-      config: {
-        systemInstruction: systemInstruction,
-        temperature: mode === CoachingMode.SHADOW ? 0.9 : 0.7, 
-      }
+      config: { systemInstruction: systemInstruction }
     });
 
-    return response.text || "I am processing...";
+    return response.text || "I am listening...";
   } catch (error: any) {
-    console.error("Gemini Chat Error:", error);
-    if (error.message?.includes('API key')) {
-      return "System Notice: I cannot connect to my neural core (API Key Missing). Please check your settings.";
-    }
-    return "Neural core connection interrupted. Retrying...";
+    handleGeminiError(error, "generateTwinResponse");
+    return "Neural connection unstable. Switching to manual mode... (Please check API Key)";
   }
 };
 
@@ -197,64 +186,26 @@ export const analyzeTwinState = async (
   currentMode: CoachingMode,
   signal?: SignalPackage
 ): Promise<{ twinState: TwinState; insight: DailyInsight | null }> => {
+  const ai = getAi();
+  
+  if (!ai) {
+    return { twinState: INITIAL_TWIN_STATE, insight: null };
+  }
+
   try {
-    if (history.length < 2) return { twinState: { mood: 'neutral', energy: 50, coherence: 50 }, insight: null };
+    if (history.length < 2) return { twinState: INITIAL_TWIN_STATE, insight: null };
 
-    const ai = getAi();
     const conversationText = history.slice(-20).map(m => `${m.role}: ${m.text}`).join('\n');
-    const modeConfig = MODE_CONFIG[currentMode];
-
-    const prompt = `
-      You are the Deep Insight Engine. Mode: ${modeConfig.name}.
-      Analyze this conversation for deep psychological patterns.
-      Conversation:
-      ${conversationText}
-    `;
+    const prompt = `Analyze conversation for psychological patterns. Return JSON with mood, energy, coherence, and insight details.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            mood: { type: Type.STRING, enum: ['neutral', 'happy', 'stressed', 'focused', 'reflective'] },
-            energy: { type: Type.INTEGER },
-            coherence: { type: Type.INTEGER },
-            emotionalScore: { type: Type.INTEGER },
-            dominantEmotion: { type: Type.STRING },
-            title: { type: Type.STRING },
-            bullets: { type: Type.ARRAY, items: { type: Type.STRING } },
-            trend: { type: Type.STRING, enum: ['up', 'down', 'stable'] },
-            tags: { type: Type.ARRAY, items: { type: Type.STRING } },
-            insightType: { type: Type.STRING, enum: ['behavioral', 'emotional', 'strategic', 'shadow', 'future', 'meta', 'conflict'] },
-            summary: { type: Type.STRING },
-            patterns: { type: Type.ARRAY, items: { type: Type.STRING } },
-            blindSpots: { type: Type.ARRAY, items: { type: Type.STRING } },
-            conflicts: { type: Type.ARRAY, items: { type: Type.STRING } },
-            trajectory: { type: Type.STRING },
-            actionableStep: { type: Type.STRING },
-            patternPersistence: { type: Type.INTEGER },
-            distortions: {
-              type: Type.OBJECT,
-              properties: {
-                allOrNothing: { type: Type.INTEGER },
-                catastrophizing: { type: Type.INTEGER },
-                emotionalReasoning: { type: Type.INTEGER },
-                shouldStatements: { type: Type.INTEGER },
-                personalization: { type: Type.INTEGER },
-              }
-            }
-          }
-        }
-      }
+      contents: prompt + `\n${conversationText}`,
+      config: { responseMimeType: "application/json" }
     });
 
     const data = JSON.parse(response.text || "{}");
-    const intensity = signal ? signal.intensity : 50;
-    const memoryStrength = Math.min(100, Math.floor((intensity + (data.patternPersistence || 50)) / 2));
-
+    
     return {
       twinState: {
         mood: data.mood || 'neutral',
@@ -278,25 +229,14 @@ export const analyzeTwinState = async (
         conflicts: data.conflicts || [],
         trajectory: data.trajectory || "Stable",
         actionableStep: data.actionableStep || "Reflect",
-        memoryStrength: memoryStrength,
-        patternPersistence: data.patternPersistence || 50,
-        distortions: data.distortions || {
-          allOrNothing: 0,
-          catastrophizing: 0,
-          emotionalReasoning: 0,
-          shouldStatements: 0,
-          personalization: 0
-        }
+        memoryStrength: 50,
+        patternPersistence: 50
       }
     };
   } catch (error) {
-    console.warn("Analysis failed (Non-critical):", error);
-    return { twinState: { mood: 'neutral', energy: 50, coherence: 50 }, insight: null };
+    handleGeminiError(error, "analyzeTwinState");
+    return { twinState: INITIAL_TWIN_STATE, insight: null };
   }
-};
-
-export const generateMetaInsight = async (allInsights: DailyInsight[]): Promise<DailyInsight | null> => {
-  return null; 
 };
 
 export const generateInitialTelemetry = async (
@@ -304,8 +244,11 @@ export const generateInitialTelemetry = async (
   userName: string,
   signal?: SignalPackage
 ): Promise<DailyInsight[]> => {
+  const ai = getAi();
+  if (!ai) return [];
+
   try {
-    const modes = [CoachingMode.BASELINE, CoachingMode.SHADOW, CoachingMode.FUTURE];
+    const modes = [CoachingMode.BASELINE];
     const results = await Promise.all(modes.map(mode => analyzeTwinState(history, mode, signal)));
     return results.map(r => r.insight).filter((i): i is DailyInsight => i !== null);
   } catch (error) {

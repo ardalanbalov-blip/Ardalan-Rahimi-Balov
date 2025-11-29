@@ -11,20 +11,27 @@ export const INITIAL_TWIN_STATE = {
 
 export const TRIAL_DURATION_DAYS = 14;
 
-// NOTE: We access properties directly (e.g. import.meta.env.VITE_...) to ensure 
-// Vite can statically replace them during build.
+// Safely retrieve env variables
+const getEnv = (key: string): string => {
+  // @ts-ignore
+  if (import.meta.env && import.meta.env[key]) return import.meta.env[key];
+  // @ts-ignore
+  if (typeof process !== 'undefined' && process.env && process.env[key]) return process.env[key];
+  return '';
+};
+
 export const FIREBASE_CONFIG = {
-  apiKey: (import.meta as any).env.VITE_FIREBASE_API_KEY || 'AIzaSyCNW7z0-ZzLbFVG0kn9XQOFMU4v-FFzBF0',
-  authDomain: (import.meta as any).env.VITE_FIREBASE_AUTH_DOMAIN || 'aura-e0c49.firebaseapp.com',
-  projectId: (import.meta as any).env.VITE_FIREBASE_PROJECT_ID || 'aura-e0c49',
-  storageBucket: (import.meta as any).env.VITE_FIREBASE_STORAGE_BUCKET || 'aura-e0c49.appspot.com',
-  messagingSenderId: (import.meta as any).env.VITE_FIREBASE_MESSAGING_SENDER_ID || '16375430386',
-  appId: (import.meta as any).env.VITE_FIREBASE_APP_ID || '1:16375430386:web:a97c621aab38ee88c2a46b',
-  measurementId: (import.meta as any).env.VITE_FIREBASE_MEASUREMENT_ID || 'G-H7JGV82Q48'
+  apiKey: getEnv('VITE_FIREBASE_API_KEY') || 'AIzaSyCNW7z0-ZzLbFVG0kn9XQOFMU4v-FFzBF0',
+  authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN') || 'aura-e0c49.firebaseapp.com',
+  projectId: getEnv('VITE_FIREBASE_PROJECT_ID') || 'aura-e0c49',
+  storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET') || 'aura-e0c49.appspot.com',
+  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID') || '16375430386',
+  appId: getEnv('VITE_FIREBASE_APP_ID') || '1:16375430386:web:a97c621aab38ee88c2a46b',
+  measurementId: getEnv('VITE_FIREBASE_MEASUREMENT_ID') || 'G-H7JGV82Q48'
 };
 
 // Explicit Gemini API Key - Distinct from Firebase
-export const GEMINI_API_KEY = (import.meta as any).env.VITE_GEMINI_API_KEY || (process as any).env?.API_KEY || '';
+export const GEMINI_API_KEY = getEnv('VITE_GEMINI_API_KEY') || getEnv('API_KEY') || '';
 
 export const getTierValue = (tier: PremiumTier): number => {
   switch (tier) {
@@ -283,7 +290,7 @@ export const TIERS = [
     features: ["Adaptive Coach & Goal Navigation", "Voice Interaction (TTS/STT)", "Essential Memory Retention"],
     highlight: false,
     stripeBuyButtonId: "buy_btn_1SXUjg0Fx05CFKF9QA8Q9VEc",
-    stripePriceId: "price_1SXUYE0Fx05CFKF9IwxMP46y" // REPLACE WITH YOUR STRIPE PRICE ID
+    stripePriceId: "price_1SXUYE0Fx05CFKF9IwxMP46y"
   },
   {
     id: PremiumTier.PLUS,
@@ -294,7 +301,7 @@ export const TIERS = [
     features: ["Shadow Twin (Blind Spot Detector)", "Psychological Defense Radar", "Full Pattern Analysis"],
     highlight: true,
     stripeBuyButtonId: "buy_btn_1SXUit0Fx05CFKF9aaMtd5RO",
-    stripePriceId: "price_1SXUZl0Fx05CFKF919Yom6Y8" // REPLACE WITH YOUR STRIPE PRICE ID
+    stripePriceId: "price_1SXUZl0Fx05CFKF919Yom6Y8"
   },
   {
     id: PremiumTier.MASTER,
@@ -305,6 +312,6 @@ export const TIERS = [
     features: ["Unlimited Memory Access", "Meta-Coach (Super-Synthesis Engine)", "Cognitive Distortion Tracker", "Therapist-Grade Reports", "Access to Coin Utility"],
     highlight: false,
     stripeBuyButtonId: "buy_btn_1SXUeu0Fx05CFKF9zlm7uDur",
-    stripePriceId: "price_1SXUaW0Fx05CFKF94mIlr3q1" // REPLACE WITH YOUR STRIPE PRICE ID
+    stripePriceId: "price_1SXUaW0Fx05CFKF94mIlr3q1"
   }
 ];

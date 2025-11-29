@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     resolve: {
       alias: {
-        '@': fileURLToPath(new URL('./', import.meta.url))
+        '@': fileURLToPath(new URL('./src', import.meta.url))
       }
     },
     define: {
@@ -22,13 +22,9 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: 'dist',
-      // Removed rollupOptions.external to ensure all libraries are bundled correctly.
-      // This fixes the ReactCurrentOwner error and module loading failures.
       rollupOptions: {
         output: {
-          manualChunks: {
-            vendor: ['react', 'react-dom', 'recharts', 'firebase/app', 'firebase/auth', 'firebase/firestore']
-          }
+          // Let Vite handle chunking automatically to prevent 404 errors on missing vendor chunks
         }
       }
     }

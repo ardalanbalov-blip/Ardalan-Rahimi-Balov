@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, collection, query, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 import { db } from './firebase';
 import { UserState, SubscriptionStatus, ChatThread, DailyInsight, CoreMemory, PremiumTier } from '../types';
@@ -15,42 +15,51 @@ const MEMORIES_COLLECTION = 'memories';
 
 export const initializeUserInDB = async (user: User, initialPlan: PremiumTier): Promise<UserState> => {
   const userRef = doc(db, USERS_COLLECTION, user.uid);
-  const userSnap = await getDoc(userRef);
-  const now = new Date().toISOString();
+  
+  try {
+    const userSnap = await getDoc(userRef);
+    const now = new Date().toISOString();
 
-  if (userSnap.exists()) {
-    // If user exists, we should check their authoritative subscription status from Stripe
-    const existingUser = userSnap.data() as UserState;
-    const syncedUser = await syncSubscriptionStatus(existingUser);
-    if (syncedUser) return syncedUser;
-    return existingUser;
+    if (userSnap.exists()) {
+      // If user exists, we should check their authoritative subscription status from Stripe
+      const existingUser = userSnap.data() as UserState;
+      const syncedUser = await syncSubscriptionStatus(existingUser);
+      if (syncedUser) return syncedUser;
+      return existingUser;
+    }
+    
+    // New User
+    const isTrial = initialPlan !== PremiumTier.FREE;
+    const trialEndsAt = isTrial ? new Date(Date.now() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000).toISOString() : undefined;
+    
+    // Default to 'free' or 'trial' until Stripe webhook confirms subscription
+    const initialSubscription: SubscriptionStatus = isTrial ? 'trial_active' : 'free';
+
+    const newUserState: UserState = {
+      id: user.uid,
+      email: user.email || '',
+      emailVerified: user.emailVerified,
+      name: user.displayName || undefined,
+      joinedAt: now,
+      tier: initialPlan,
+      subscriptionStatus: initialSubscription,
+      trialEndsAt: trialEndsAt,
+      coins: 100,
+      streakDays: 1,
+      voiceEnabled: true,
+      memories: [],
+      lastViewedMarketingVersion: 0,
+    };
+
+    await setDoc(userRef, newUserState);
+    return newUserState;
+  } catch (error: any) {
+    console.error("DB Initialization Error:", error);
+    if (error.code === 'permission-denied') {
+        console.error("CRITICAL: Permission denied. Please check firestore.rules.");
+    }
+    throw error;
   }
-  
-  // New User
-  const isTrial = initialPlan !== PremiumTier.FREE;
-  const trialEndsAt = isTrial ? new Date(Date.now() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000).toISOString() : undefined;
-  
-  // Default to 'free' or 'trial' until Stripe webhook confirms subscription
-  const initialSubscription: SubscriptionStatus = isTrial ? 'trial_active' : 'free';
-
-  const newUserState: UserState = {
-    id: user.uid,
-    email: user.email || '',
-    emailVerified: user.emailVerified,
-    name: user.displayName || undefined,
-    joinedAt: now,
-    tier: initialPlan,
-    subscriptionStatus: initialSubscription,
-    trialEndsAt: trialEndsAt,
-    coins: 100,
-    streakDays: 1,
-    voiceEnabled: true,
-    memories: [],
-    lastViewedMarketingVersion: 0,
-  };
-
-  await setDoc(userRef, newUserState);
-  return newUserState;
 };
 
 /**
@@ -97,14 +106,19 @@ const syncSubscriptionStatus = async (userState: UserState): Promise<UserState |
 
 export const loadUserState = async (userId: string): Promise<UserState | null> => {
   const userRef = doc(db, USERS_COLLECTION, userId);
-  const userSnap = await getDoc(userRef);
-  if (!userSnap.exists()) return null;
-  
-  const user = userSnap.data() as UserState;
-  
-  // Attempt sync on load
-  const synced = await syncSubscriptionStatus(user);
-  return synced || user;
+  try {
+    const userSnap = await getDoc(userRef);
+    if (!userSnap.exists()) return null;
+    
+    const user = userSnap.data() as UserState;
+    
+    // Attempt sync on load
+    const synced = await syncSubscriptionStatus(user);
+    return synced || user;
+  } catch (error) {
+    console.error("Error loading user state:", error);
+    return null;
+  }
 };
 
 export const updateUserFields = async (userId: string, fields: Partial<UserState>): Promise<void> => {

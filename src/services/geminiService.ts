@@ -1,28 +1,29 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { Message, CoachingMode, TwinState, DailyInsight, SignalPackage, CoreMemory } from "../types";
 import { MODE_CONFIG, FIREBASE_CONFIG } from "../constants";
 
 // Lazy initialization to prevent crash on load if API key is missing.
-// The SDK throws immediately in browser environments if apiKey is missing in the constructor.
 let aiInstance: GoogleGenAI | null = null;
 
 const getAi = (): GoogleGenAI => {
   if (!aiInstance) {
-    // Attempt to resolve API Key from multiple potential sources
-    // 1. process.env.API_KEY (injected via Vite define)
+    // Attempt to resolve API Key from multiple sources
+    // 1. process.env.API_KEY (injected via Vite define or build secrets)
     // 2. import.meta.env.VITE_GEMINI_API_KEY (standard Vite)
-    // 3. import.meta.env.VITE_API_KEY (fallback)
-    // 4. FIREBASE_CONFIG.apiKey (Fallback to the Firebase key if Gemini specific key is missing)
-    const apiKey = process.env.API_KEY || 
-                   (import.meta as any).env.VITE_GEMINI_API_KEY || 
-                   (import.meta as any).env.VITE_API_KEY || 
-                   FIREBASE_CONFIG.apiKey ||
-                   '';
+    // 3. FIREBASE_CONFIG.apiKey (Fallback to the Firebase key which often works for Vertex AI/GenAI too)
+    
+    const envKey = process.env.API_KEY;
+    const viteKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+    const firebaseKey = FIREBASE_CONFIG?.apiKey;
+
+    // Remove empty strings from consideration
+    const candidateKeys = [envKey, viteKey, firebaseKey].filter(k => k && k.length > 0 && k !== '""');
+    const apiKey = candidateKeys[0];
 
     if (!apiKey) {
-      console.error("CRITICAL: Gemini API Key is missing. Please ensure API_KEY or VITE_GEMINI_API_KEY is set.");
-      throw new Error("API key is missing. Please provide a valid API key.");
+      console.error("CRITICAL ERROR: Gemini API Key is missing.");
+      // We throw here, but the calling functions must catch this.
+      throw new Error("API key is missing.");
     }
     
     aiInstance = new GoogleGenAI({ apiKey });
@@ -81,6 +82,7 @@ export const scanForCoreMemories = async (
     return null;
   } catch (e) {
     // Fail silently for memory scans to avoid interrupting the main flow
+    console.warn("Memory scan skipped:", e);
     return null;
   }
 };
@@ -128,6 +130,7 @@ export const preprocessUserSignal = async (text: string, historyContext: string)
       detectedLanguage: data.detectedLanguage || 'en'
     };
   } catch (e) {
+    console.warn("Signal processing skipped:", e);
     return {
       emotion: 'neutral',
       intensity: 50,
@@ -162,7 +165,6 @@ export const generateTwinResponse = async (
       }
     }
 
-    // Inject Long-Term Memories (Top 3 by importance)
     if (memories.length > 0) {
       const topMemories = [...memories].sort((a, b) => b.importance - a.importance).slice(0, 3);
       systemInstruction += `\n\nCORE MEMORIES (Things you know about the user):\n${topMemories.map(m => `- [${m.category.toUpperCase()}] ${m.content}`).join('\n')}`;
@@ -190,10 +192,10 @@ export const generateTwinResponse = async (
 
     return response.text || "I am processing...";
   } catch (error: any) {
-    if (error.message?.includes('API key')) {
-      return "System Error: Neural core missing valid authorization key. Please check configuration.";
-    }
     console.error("Gemini Chat Error:", error);
+    if (error.message?.includes('API key')) {
+      return "System Notice: I cannot connect to my neural core (API Key Missing). Please check your settings.";
+    }
     return "Neural core connection interrupted. Retrying...";
   }
 };
@@ -213,14 +215,6 @@ export const analyzeTwinState = async (
     const prompt = `
       You are the Deep Insight Engine. Mode: ${modeConfig.name}.
       Analyze this conversation for deep psychological patterns.
-      
-      Specifically evaluate Cognitive Distortions (0-10 intensity):
-      1. All-or-Nothing Thinking
-      2. Catastrophizing
-      3. Emotional Reasoning
-      4. Should Statements
-      5. Personalization
-
       Conversation:
       ${conversationText}
     `;
@@ -304,12 +298,12 @@ export const analyzeTwinState = async (
       }
     };
   } catch (error) {
+    console.warn("Analysis failed (Non-critical):", error);
     return { twinState: { mood: 'neutral', energy: 50, coherence: 50 }, insight: null };
   }
 };
 
 export const generateMetaInsight = async (allInsights: DailyInsight[]): Promise<DailyInsight | null> => {
-  if (allInsights.length === 0) return null;
   return null; 
 };
 

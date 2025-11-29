@@ -21,17 +21,14 @@ const getEnv = (key: string): string => {
 };
 
 export const FIREBASE_CONFIG = {
-  apiKey: getEnv('VITE_FIREBASE_API_KEY') || 'AIzaSyCNW7z0-ZzLbFVG0kn9XQOFMU4v-FFzBF0',
-  authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN') || 'aura-e0c49.firebaseapp.com',
-  projectId: getEnv('VITE_FIREBASE_PROJECT_ID') || 'aura-e0c49',
-  storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET') || 'aura-e0c49.appspot.com',
-  messagingSenderId: getEnv('VITE_FIREBASE_MESSAGING_SENDER_ID') || '16375430386',
-  appId: getEnv('VITE_FIREBASE_APP_ID') || '1:16375430386:web:a97c621aab38ee88c2a46b',
-  measurementId: getEnv('VITE_FIREBASE_MEASUREMENT_ID') || 'G-H7JGV82Q48'
+  apiKey: 'AIzaSyCNW7z0-ZzLbFVG0kn9XQOFMU4v-FFzBF0',
+  authDomain: 'aura-e0c49.firebaseapp.com',
+  projectId: 'aura-e0c49',
+  storageBucket: 'aura-e0c49.appspot.com',
+  messagingSenderId: '16375430386',
+  appId: '1:16375430386:web:a97c621aab38ee88c2a46b',
+  measurementId: 'G-H7JGV82Q48'
 };
-
-// Explicit Gemini API Key - Distinct from Firebase
-export const GEMINI_API_KEY = getEnv('VITE_GEMINI_API_KEY') || getEnv('API_KEY') || '';
 
 export const getTierValue = (tier: PremiumTier): number => {
   switch (tier) {

@@ -1,28 +1,20 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Message, CoachingMode, TwinState, DailyInsight, SignalPackage, CoreMemory } from "../types";
-import { MODE_CONFIG, FIREBASE_CONFIG } from "../constants";
+import { MODE_CONFIG, GEMINI_API_KEY } from "../constants";
 
 // Lazy initialization to prevent crash on load if API key is missing.
 let aiInstance: GoogleGenAI | null = null;
 
 const getAi = (): GoogleGenAI => {
   if (!aiInstance) {
-    // Attempt to resolve API Key from multiple sources
-    // 1. process.env.API_KEY (injected via Vite define or build secrets)
-    // 2. import.meta.env.VITE_GEMINI_API_KEY (standard Vite)
-    // 3. FIREBASE_CONFIG.apiKey (Fallback to the Firebase key which often works for Vertex AI/GenAI too)
+    // Attempt to resolve API Key
+    // We strictly use the GEMINI_API_KEY defined in constants which pulls from VITE_GEMINI_API_KEY or env.API_KEY
+    // We do NOT fallback to Firebase config as the user requested separation.
     
-    const envKey = process.env.API_KEY;
-    const viteKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-    const firebaseKey = FIREBASE_CONFIG?.apiKey;
+    const apiKey = GEMINI_API_KEY;
 
-    // Remove empty strings from consideration
-    const candidateKeys = [envKey, viteKey, firebaseKey].filter(k => k && k.length > 0 && k !== '""');
-    const apiKey = candidateKeys[0];
-
-    if (!apiKey) {
-      console.error("CRITICAL ERROR: Gemini API Key is missing.");
-      // We throw here, but the calling functions must catch this.
+    if (!apiKey || apiKey.length === 0 || apiKey === '""') {
+      console.error("CRITICAL ERROR: Gemini API Key is missing. Please check VITE_GEMINI_API_KEY.");
       throw new Error("API key is missing.");
     }
     

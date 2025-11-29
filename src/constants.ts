@@ -1,5 +1,4 @@
 
-
 import { CoachingMode, PremiumTier } from './types';
 
 export const APP_NAME = "Aura";
@@ -23,6 +22,9 @@ export const FIREBASE_CONFIG = {
   appId: (import.meta as any).env.VITE_FIREBASE_APP_ID || '1:16375430386:web:a97c621aab38ee88c2a46b',
   measurementId: (import.meta as any).env.VITE_FIREBASE_MEASUREMENT_ID || 'G-H7JGV82Q48'
 };
+
+// Explicit Gemini API Key - Distinct from Firebase
+export const GEMINI_API_KEY = (import.meta as any).env.VITE_GEMINI_API_KEY || (process as any).env?.API_KEY || '';
 
 export const getTierValue = (tier: PremiumTier): number => {
   switch (tier) {

@@ -1,7 +1,7 @@
 
 import { getStripePayments, createCheckoutSession } from '@stripe/firestore-stripe-payments';
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from './firebase';
+import { httpsCallable } from 'firebase/functions';
+import { app, functions } from './firebase'; // Use shared instances
 import { PremiumTier } from '../types';
 import { TIERS } from '../constants';
 
@@ -44,8 +44,7 @@ export const startCheckout = async (tier: PremiumTier) => {
  * Uses the extension's callable function via Firebase Functions.
  */
 export const goToPortal = async () => {
-  // Use the region specified in your extension configuration (europe-west3 based on your previous logs)
-  const functions = getFunctions(app, 'europe-west4');
+  // Use the shared functions instance (configured for europe-west4)
   const functionRef = httpsCallable(functions, 'ext-firestore-stripe-payments-createPortalLink');
   
   try {

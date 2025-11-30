@@ -1,11 +1,10 @@
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from './firebase'; // Ensure this exports your initialized Firebase app
+
+import { httpsCallable } from 'firebase/functions';
+import { functions } from './firebase'; // Use the shared instance
 import { Message, CoachingMode, TwinState, DailyInsight, SignalPackage, CoreMemory } from "../types";
 import { MODE_CONFIG, INITIAL_TWIN_STATE } from "../constants";
 
-// Initialize Firebase Functions reference
-// Ensure this matches the region defined in your Cloud Function
-const functions = getFunctions(app, 'europe-west4');
+// Initialize reference to the backend function using the shared functions instance
 const generateGeminiContentFn = httpsCallable(functions, 'generateGeminiContent');
 
 /**

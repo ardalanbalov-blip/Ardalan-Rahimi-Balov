@@ -1,4 +1,3 @@
-
 import { httpsCallable } from 'firebase/functions';
 import { functions } from './firebase'; // Use the shared instance
 import { Message, CoachingMode, TwinState, DailyInsight, SignalPackage, CoreMemory } from "../types";

@@ -1,9 +1,7 @@
-
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
-import { FIREBASE_CONFIG } from '../constants';
 
 // Initialize Firebase
 // Using the imported config which already handles env variables in constants.ts

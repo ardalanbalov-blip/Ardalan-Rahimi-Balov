@@ -1,4 +1,3 @@
-
 import { getStripePayments, createCheckoutSession } from '@stripe/firestore-stripe-payments';
 import { httpsCallable } from 'firebase/functions';
 import { app, functions } from './firebase'; // Use shared instances

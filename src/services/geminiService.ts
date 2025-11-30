@@ -1,19 +1,35 @@
-import { GoogleGenAI } from '@google/genai';
+import { functions } from './firebase';
 import { Message, CoachingMode, TwinState, DailyInsight, SignalPackage, CoreMemory } from "../types";
 import { MODE_CONFIG, INITIAL_TWIN_STATE } from "../constants";
-
-// Initialize GenAI Client directly with the API Key from environment
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Helper to safely parse JSON from model output
 const parseJSON = (text: string) => {
   try {
-    // Remove markdown code blocks if present
     const cleanText = text.replace(/```json\n|\n```|```/g, '').trim();
     return JSON.parse(cleanText);
   } catch (e) {
     console.error("Failed to parse JSON", text);
     return {};
+  }
+};
+
+/**
+ * Helper to call the secure Cloud Function
+ */
+const callGeminiFunction = async (payload: any): Promise<string> => {
+  try {
+    // We use the 'europe-west4' functions instance exported from firebase.ts
+    const generateFn = functions.httpsCallable('generateGeminiContent');
+    const result = await generateFn(payload);
+    
+    const data = result.data as any;
+    if (data.success && data.text) {
+      return data.text;
+    }
+    throw new Error("Invalid response from server");
+  } catch (error) {
+    console.error("Cloud Function Error:", error);
+    throw error;
   }
 };
 
@@ -30,13 +46,13 @@ export const scanForCoreMemories = async (
       Return JSON: { isMemory: boolean, content: string, category: 'emotional'|'fact'|'preference'|'milestone', importance: number }
     `;
 
-    const response = await ai.models.generateContent({
+    const textResponse = await callGeminiFunction({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: { responseMimeType: "application/json" }
     });
 
-    const data = parseJSON(response.text || "{}");
+    const data = parseJSON(textResponse || "{}");
     
     if (data.isMemory && data.importance >= 7) {
       return {
@@ -65,13 +81,13 @@ export const preprocessUserSignal = async (text: string, historyContext: string)
       Return JSON.
     `;
 
-    const response = await ai.models.generateContent({
+    const textResponse = await callGeminiFunction({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: { responseMimeType: "application/json" }
     });
 
-    const data = parseJSON(response.text || "{}");
+    const data = parseJSON(textResponse || "{}");
     return {
       emotion: data.emotion || 'neutral',
       intensity: data.intensity || 50,
@@ -124,15 +140,15 @@ export const generateTwinResponse = async (
       Respond in character. Short, concise, empathetic.
     `;
 
-    const response = await ai.models.generateContent({
+    const responseText = await callGeminiFunction({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: { 
-        systemInstruction: systemInstruction 
+        systemInstruction: { parts: [{ text: systemInstruction }] } // Correct structure for API
       }
     });
 
-    return response.text || "I am listening...";
+    return responseText || "I am listening...";
   } catch (error: any) {
     console.error("Error generating twin response:", error);
     return "Neural connection unstable. Please try again.";
@@ -157,13 +173,13 @@ export const analyzeTwinState = async (
       - insight details (summary, title, bullets, trend, insightType, etc.)
     `;
 
-    const response = await ai.models.generateContent({
+    const textResponse = await callGeminiFunction({
       model: 'gemini-2.5-flash',
       contents: prompt + `\n${conversationText}`,
       config: { responseMimeType: "application/json" }
     });
 
-    const data = parseJSON(response.text || "{}");
+    const data = parseJSON(textResponse || "{}");
     
     return {
       twinState: {
@@ -204,7 +220,6 @@ export const generateInitialTelemetry = async (
   signal?: SignalPackage
 ): Promise<DailyInsight[]> => {
   try {
-    // Only run baseline analysis for initial telemetry to save tokens
     const result = await analyzeTwinState(history, CoachingMode.BASELINE, signal);
     return result.insight ? [result.insight] : [];
   } catch (error) {

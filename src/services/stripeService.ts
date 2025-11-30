@@ -1,5 +1,4 @@
-import { collection, addDoc, onSnapshot } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
+import firebase from 'firebase/app';
 import { db, functions, auth } from './firebase'; 
 import { PremiumTier } from '../types';
 import { TIERS } from '../constants';
@@ -23,10 +22,10 @@ export const startCheckout = async (tier: PremiumTier) => {
 
   try {
     // Reference the subcollection for the specific user
-    const checkoutSessionsRef = collection(db, 'customers', user.uid, 'checkout_sessions');
+    const checkoutSessionsRef = db.collection('customers').doc(user.uid).collection('checkout_sessions');
     
     // Create the checkout session document
-    const docRef = await addDoc(checkoutSessionsRef, {
+    const docRef = await checkoutSessionsRef.add({
       price: tierConfig.stripePriceId,
       success_url: window.location.origin,
       cancel_url: window.location.origin,
@@ -36,7 +35,7 @@ export const startCheckout = async (tier: PremiumTier) => {
 
     // Listen for the extension to append the URL or error to the document
     return new Promise<void>((resolve, reject) => {
-      const unsubscribe = onSnapshot(docRef, (snap) => {
+      const unsubscribe = docRef.onSnapshot((snap) => {
         const data = snap.data();
         if (data) {
           if (data.error) {
@@ -63,13 +62,16 @@ export const startCheckout = async (tier: PremiumTier) => {
  * Uses the extension's callable function via Firebase Functions.
  */
 export const goToPortal = async () => {
-  // Use the shared functions instance (configured for europe-west4)
-  const functionRef = httpsCallable(functions, 'ext-firestore-stripe-payments-createPortalLink');
+  // Use the exported functions instance (which is app.functions('region'))
+  // or use firebase.functions() if we imported it.
+  // In v8, we call .httpsCallable on the functions instance
+  const functionRef = functions.httpsCallable('ext-firestore-stripe-payments-createPortalLink');
   
   try {
-    const { data }: any = await functionRef({
+    const result = await functionRef({
       returnUrl: window.location.origin,
     });
+    const data = result.data as any;
     window.location.assign(data.url);
   } catch (error: any) {
     console.error("Stripe Portal Error:", error);

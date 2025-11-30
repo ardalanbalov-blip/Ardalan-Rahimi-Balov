@@ -1,5 +1,4 @@
-import { doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { User } from 'firebase/auth';
+import firebase from 'firebase/app';
 import { db } from './firebase';
 import { UserState, SubscriptionStatus, ChatThread, DailyInsight, CoreMemory, PremiumTier } from '../types';
 import { TRIAL_DURATION_DAYS } from '../constants';
@@ -33,7 +32,7 @@ const saveMockData = (data: any) => {
 
 // --- INITIERING OCH PROFIL ---
 
-export const initializeUserInDB = async (user: User, initialPlan: PremiumTier): Promise<UserState> => {
+export const initializeUserInDB = async (user: firebase.User, initialPlan: PremiumTier): Promise<UserState> => {
   const now = new Date().toISOString();
   
   // Default State
@@ -68,17 +67,17 @@ export const initializeUserInDB = async (user: User, initialPlan: PremiumTier): 
   }
 
   // Real Firestore
-  const userRef = doc(db, USERS_COLLECTION, user.uid);
+  const userRef = db.collection(USERS_COLLECTION).doc(user.uid);
   
   try {
-    const userSnap = await getDoc(userRef);
-    if (userSnap.exists()) {
+    const userSnap = await userRef.get();
+    if (userSnap.exists) {
       const existingUser = userSnap.data() as UserState;
       const syncedUser = await syncSubscriptionStatus(existingUser);
       if (syncedUser) return syncedUser;
       return existingUser;
     }
-    await setDoc(userRef, newUserState);
+    await userRef.set(newUserState);
     return newUserState;
   } catch (error: any) {
     console.error("DB Init Error, falling back to Mock:", error);
@@ -94,9 +93,8 @@ const syncSubscriptionStatus = async (userState: UserState): Promise<UserState |
   if (isMockMode()) return null;
 
   try {
-    const subsRef = collection(db, CUSTOMERS_COLLECTION, userState.id, SUBSCRIPTIONS_COLLECTION);
-    const q = query(subsRef);
-    const snap = await getDocs(q);
+    const subsRef = db.collection(CUSTOMERS_COLLECTION).doc(userState.id).collection(SUBSCRIPTIONS_COLLECTION);
+    const snap = await subsRef.get();
     
     const activeSub = snap.docs.find(d => ['active', 'trialing'].includes(d.data().status));
     
@@ -129,10 +127,10 @@ export const loadUserState = async (userId: string): Promise<UserState | null> =
     return data.users[userId] || null;
   }
 
-  const userRef = doc(db, USERS_COLLECTION, userId);
+  const userRef = db.collection(USERS_COLLECTION).doc(userId);
   try {
-    const userSnap = await getDoc(userRef);
-    if (!userSnap.exists()) return null;
+    const userSnap = await userRef.get();
+    if (!userSnap.exists) return null;
     const user = userSnap.data() as UserState;
     const synced = await syncSubscriptionStatus(user);
     return synced || user;
@@ -154,8 +152,8 @@ export const updateUserFields = async (userId: string, fields: Partial<UserState
     return;
   }
 
-  const userRef = doc(db, USERS_COLLECTION, userId);
-  await updateDoc(userRef, fields);
+  const userRef = db.collection(USERS_COLLECTION).doc(userId);
+  await userRef.update(fields);
 };
 
 // --- CHATT & MINNE ---
@@ -171,8 +169,8 @@ export const saveChatThread = async (userId: string, thread: ChatThread): Promis
     return;
   }
 
-  const threadRef = doc(db, USERS_COLLECTION, userId, THREADS_COLLECTION, thread.id);
-  await setDoc(threadRef, thread, { merge: true });
+  const threadRef = db.collection(USERS_COLLECTION).doc(userId).collection(THREADS_COLLECTION).doc(thread.id);
+  await threadRef.set(thread, { merge: true });
 };
 
 export const loadThreads = async (userId: string): Promise<ChatThread[]> => {
@@ -182,8 +180,8 @@ export const loadThreads = async (userId: string): Promise<ChatThread[]> => {
     return Object.values(threadsMap).sort((a: any, b: any) => b.updatedAt - a.updatedAt) as ChatThread[];
   }
 
-  const q = query(collection(db, USERS_COLLECTION, userId, THREADS_COLLECTION));
-  const querySnapshot = await getDocs(q);
+  const q = db.collection(USERS_COLLECTION).doc(userId).collection(THREADS_COLLECTION);
+  const querySnapshot = await q.get();
   const threads: ChatThread[] = [];
   querySnapshot.forEach((doc) => {
     threads.push(doc.data() as ChatThread);
@@ -202,8 +200,8 @@ export const saveCoreMemory = async (userId: string, memory: CoreMemory): Promis
     return;
   }
 
-  const memoryRef = doc(db, USERS_COLLECTION, userId, MEMORIES_COLLECTION, memory.id);
-  await setDoc(memoryRef, memory);
+  const memoryRef = db.collection(USERS_COLLECTION).doc(userId).collection(MEMORIES_COLLECTION).doc(memory.id);
+  await memoryRef.set(memory);
 };
 
 // --- INSIKTER ---
@@ -218,8 +216,8 @@ export const saveInsight = async (userId: string, insight: DailyInsight): Promis
     return;
   }
 
-  const insightRef = doc(db, USERS_COLLECTION, userId, INSIGHTS_COLLECTION, insight.date);
-  await setDoc(insightRef, insight);
+  const insightRef = db.collection(USERS_COLLECTION).doc(userId).collection(INSIGHTS_COLLECTION).doc(insight.date);
+  await insightRef.set(insight);
 };
 
 export const loadInsights = async (userId: string): Promise<DailyInsight[]> => {
@@ -229,8 +227,8 @@ export const loadInsights = async (userId: string): Promise<DailyInsight[]> => {
     return Object.values(insightsMap).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime()) as DailyInsight[];
   }
 
-  const q = query(collection(db, USERS_COLLECTION, userId, INSIGHTS_COLLECTION));
-  const querySnapshot = await getDocs(q);
+  const q = db.collection(USERS_COLLECTION).doc(userId).collection(INSIGHTS_COLLECTION);
+  const querySnapshot = await q.get();
   const insights: DailyInsight[] = [];
   querySnapshot.forEach((doc) => {
     insights.push(doc.data() as DailyInsight);

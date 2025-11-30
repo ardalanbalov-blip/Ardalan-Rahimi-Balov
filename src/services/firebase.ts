@@ -1,11 +1,9 @@
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getFunctions } from 'firebase/functions';
+import firebase from 'firebase/app';
+import 'firebase/auth';
+import 'firebase/firestore';
+import 'firebase/functions';
 
-// Se till att FIREBASE_CONFIG är definierad i constants.ts eller env vars
 const firebaseConfig = {
-  // Använd `?.` för att se till att den inte kraschar om `import.meta.env` är undefined.
   apiKey: (import.meta as any).env?.VITE_FIREBASE_API_KEY || 'AIzaSyCNW7z0-ZzLbFVG0kn9XQOFMU4v-FFzBF0',
   authDomain: (import.meta as any).env?.VITE_FIREBASE_AUTH_DOMAIN || 'aura-e0c49.firebaseapp.com',
   projectId: (import.meta as any).env?.VITE_FIREBASE_PROJECT_ID || 'aura-e0c49',
@@ -14,11 +12,13 @@ const firebaseConfig = {
   appId: (import.meta as any).env?.VITE_FIREBASE_APP_ID || '1:16375430386:web:a97c621aab38ee88c2a46b'
 };
 
-// Initialisera Firebase
-export const app = initializeApp(firebaseConfig);
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
 
-// Exportera instanser
-export const auth = getAuth(app);
-export const db = getFirestore(app);
-// Initiera functions med region om nödvändigt (matchar backend konfig)
-export const functions = getFunctions(app, 'europe-west4');
+export const app = firebase.app();
+export const auth = firebase.auth();
+export const db = firebase.firestore();
+export const functions = app.functions('europe-west4');
+
+export default firebase;

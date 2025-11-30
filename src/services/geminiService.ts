@@ -1,28 +1,19 @@
-import { httpsCallable } from 'firebase/functions';
-import { functions } from './firebase'; // Use the shared instance
+import { GoogleGenAI } from '@google/genai';
 import { Message, CoachingMode, TwinState, DailyInsight, SignalPackage, CoreMemory } from "../types";
 import { MODE_CONFIG, INITIAL_TWIN_STATE } from "../constants";
 
-// Initialize reference to the backend function using the shared functions instance
-const generateGeminiContentFn = httpsCallable(functions, 'generateGeminiContent');
+// Initialize GenAI Client directly with the API Key from environment
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-/**
- * Helper to call the secure backend function.
- * This replaces the direct `ai.models.generateContent` call.
- */
-const callSecureGemini = async (payload: { model: string, contents: any, config?: any }): Promise<string> => {
+// Helper to safely parse JSON from model output
+const parseJSON = (text: string) => {
   try {
-    const result = await generateGeminiContentFn(payload);
-    const data = result.data as any;
-    
-    if (data.success && data.text) {
-      return data.text;
-    }
-    throw new Error("No text returned from Gemini Backend");
-  } catch (error: any) {
-    console.error("Secure Gemini Call Failed:", error);
-    // Return a safe fallback to prevent UI crash
-    return ""; 
+    // Remove markdown code blocks if present
+    const cleanText = text.replace(/```json\n|\n```|```/g, '').trim();
+    return JSON.parse(cleanText);
+  } catch (e) {
+    console.error("Failed to parse JSON", text);
+    return {};
   }
 };
 
@@ -39,15 +30,13 @@ export const scanForCoreMemories = async (
       Return JSON: { isMemory: boolean, content: string, category: 'emotional'|'fact'|'preference'|'milestone', importance: number }
     `;
 
-    const jsonText = await callSecureGemini({
+    const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: { responseMimeType: "application/json" }
     });
 
-    if (!jsonText) return null;
-
-    const data = JSON.parse(jsonText);
+    const data = parseJSON(response.text || "{}");
     
     if (data.isMemory && data.importance >= 7) {
       return {
@@ -69,18 +58,20 @@ export const preprocessUserSignal = async (text: string, historyContext: string)
   try {
     const prompt = `
       Analyze user message: "${text}"
+      Context: ${historyContext}
       1. Detect language ('en', 'sv', 'fr', 'de', 'es', 'zh'). Default 'en'.
-      2. Detect emotion, intent, hidden meaning. 
+      2. Detect emotion, intensity (0-100), intent, hidden meaning.
+      3. Contradiction score (0-10) and if it marks stress.
       Return JSON.
     `;
 
-    const jsonText = await callSecureGemini({
+    const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: { responseMimeType: "application/json" }
     });
 
-    const data = JSON.parse(jsonText || "{}");
+    const data = parseJSON(response.text || "{}");
     return {
       emotion: data.emotion || 'neutral',
       intensity: data.intensity || 50,
@@ -93,6 +84,7 @@ export const preprocessUserSignal = async (text: string, historyContext: string)
     };
   } catch (e) {
     console.error("Error preprocessing signal:", e);
+    // Fallback
     return {
       emotion: 'neutral',
       intensity: 50,
@@ -117,13 +109,22 @@ export const generateTwinResponse = async (
   memories: CoreMemory[] = []
 ): Promise<string> => {
   try {
-    let systemInstruction = `User Name: ${userName}. ` + MODE_CONFIG[mode].prompt;
+    let systemInstruction = `You are Aura, an AI Twin. User Name: ${userName}. ` + MODE_CONFIG[mode].prompt;
     if (signal?.detectedLanguage) systemInstruction += ` Respond in ${signal.detectedLanguage}.`;
+    
+    const memoryText = memories.map(m => `[Memory: ${m.content}]`).join('\n');
+    const insightText = recentInsights.map(i => `[Insight: ${i.summary}]`).join('\n');
 
     const context = history.slice(-10).map(m => `${m.role}: ${m.text}`).join('\n');
-    const prompt = `Context:\n${context}\nUser: "${currentMessage}"\nRespond in character.`;
+    const prompt = `
+      Memories:\n${memoryText}
+      Insights:\n${insightText}
+      Context:\n${context}
+      User: "${currentMessage}"
+      Respond in character. Short, concise, empathetic.
+    `;
 
-    const text = await callSecureGemini({
+    const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
       config: { 
@@ -131,7 +132,7 @@ export const generateTwinResponse = async (
       }
     });
 
-    return text || "I am listening...";
+    return response.text || "I am listening...";
   } catch (error: any) {
     console.error("Error generating twin response:", error);
     return "Neural connection unstable. Please try again.";
@@ -146,16 +147,23 @@ export const analyzeTwinState = async (
   try {
     if (history.length < 2) return { twinState: INITIAL_TWIN_STATE, insight: null };
 
-    const conversationText = history.slice(-20).map(m => `${m.role}: ${m.text}`).join('\n');
-    const prompt = `Analyze conversation for psychological patterns. Return JSON with mood, energy, coherence, and insight details.`;
+    const conversationText = history.slice(-10).map(m => `${m.role}: ${m.text}`).join('\n');
+    const prompt = `
+      Analyze conversation for psychological patterns. 
+      Return JSON with:
+      - mood (neutral, happy, stressed, focused, reflective)
+      - energy (0-100)
+      - coherence (0-100)
+      - insight details (summary, title, bullets, trend, insightType, etc.)
+    `;
 
-    const jsonText = await callSecureGemini({
+    const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt + `\n${conversationText}`,
       config: { responseMimeType: "application/json" }
     });
 
-    const data = JSON.parse(jsonText || "{}");
+    const data = parseJSON(response.text || "{}");
     
     return {
       twinState: {
@@ -196,9 +204,9 @@ export const generateInitialTelemetry = async (
   signal?: SignalPackage
 ): Promise<DailyInsight[]> => {
   try {
-    const modes = [CoachingMode.BASELINE];
-    const results = await Promise.all(modes.map(mode => analyzeTwinState(history, mode, signal)));
-    return results.map(r => r.insight).filter((i): i is DailyInsight => i !== null);
+    // Only run baseline analysis for initial telemetry to save tokens
+    const result = await analyzeTwinState(history, CoachingMode.BASELINE, signal);
+    return result.insight ? [result.insight] : [];
   } catch (error) {
     return [];
   }

@@ -5,7 +5,7 @@ import { MODE_CONFIG, INITIAL_TWIN_STATE } from "../constants";
 
 // Initialize Firebase Functions reference
 // Ensure this matches the region defined in your Cloud Function
-const functions = getFunctions(app, 'europe-west3');
+const functions = getFunctions(app, 'europe-west4');
 const generateGeminiContentFn = httpsCallable(functions, 'generateGeminiContent');
 
 /**

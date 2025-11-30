@@ -45,7 +45,7 @@ export const startCheckout = async (tier: PremiumTier) => {
  */
 export const goToPortal = async () => {
   // Use the region specified in your extension configuration (europe-west3 based on your previous logs)
-  const functions = getFunctions(app, 'europe-west3');
+  const functions = getFunctions(app, 'europe-west4');
   const functionRef = httpsCallable(functions, 'ext-firestore-stripe-payments-createPortalLink');
   
   try {

@@ -13,7 +13,7 @@ interface GenerateRequest {
 
 export const generateGeminiContent = onCall(
   {
-    region: "europe-west3", // Matching your existing infrastructure region
+    region: "europe-west4", // Matching your existing infrastructure region
     secrets: ["GEMINI_API_KEY"],
     cors: true, // Allow calls from your web app
     maxInstances: 10,

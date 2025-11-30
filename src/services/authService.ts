@@ -1,132 +1,67 @@
-import firebase from 'firebase/app';
+import firebase from 'firebase/compat/app';
 import { auth } from './firebase';
 import { dbService } from './dbService';
 import { UserState, PremiumTier } from '../types';
 
-// Mock Session Key for LocalStorage
-const MOCK_SESSION_KEY = 'aura_mock_session';
-
-// Helper to create a mock User object that mimics Firebase User
-const createMockUser = (email: string, uid: string = 'mock-user-123'): firebase.User => {
-  return {
-    uid,
-    email,
-    emailVerified: true,
-    displayName: 'Demo User',
-    isAnonymous: false,
-    metadata: {},
-    providerData: [],
-    refreshToken: '',
-    tenantId: null,
-    delete: async () => {},
-    getIdToken: async () => 'mock-token',
-    getIdTokenResult: async () => ({} as any),
-    reload: async () => {},
-    toJSON: () => ({}),
-    phoneNumber: null,
-    photoURL: null,
-    providerId: 'firebase',
-  } as unknown as firebase.User;
-};
-
-// Helper to handle API Key errors by falling back to Mock Mode
-const runWithFallback = async <T>(
-  operation: () => Promise<T>, 
-  fallbackFn: () => Promise<T>
-): Promise<T> => {
-  try {
-    return await operation();
-  } catch (error: any) {
-    if (
-      error.code === 'auth/api-key-not-valid.-please-pass-a-valid-api-key.' || 
-      error.message?.includes('api-key-not-valid') ||
-      error.code === 'auth/operation-not-allowed'
-    ) {
-      console.warn("Firebase Auth Error (Invalid Key/Config). Switching to Mock Auth Mode.");
-      return await fallbackFn();
-    }
-    throw error;
-  }
-};
-
-// --- AUTH METHODS ---
+// --- AUTH METODER ---
 
 export const signInWithGoogle = async (plan: PremiumTier): Promise<{ user: firebase.User, userState: UserState } | null> => {
   const provider = new firebase.auth.GoogleAuthProvider();
-  return runWithFallback(
-    async () => {
-      const result = await auth.signInWithPopup(provider);
-      const userState = await dbService.initializeUserInDB(result.user!, plan);
-      return { user: result.user!, userState };
-    },
-    async () => {
-      // Fallback Mock Google Login
-      const mockUser = createMockUser('google-demo@aura.ai', `mock-google-${Date.now()}`);
-      localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ uid: mockUser.uid, email: mockUser.email }));
-      const userState = await dbService.initializeUserInDB(mockUser, plan);
-      // Trigger listener update
-      window.dispatchEvent(new Event('storage'));
-      return { user: mockUser, userState };
-    }
-  );
+  try {
+    const result = await auth.signInWithPopup(provider);
+    const userState = await dbService.initializeUserInDB(result.user!, plan);
+    return { user: result.user!, userState };
+  } catch (error) {
+    console.error('Google Sign-In Error:', error);
+    throw new Error('Autentisering med Google misslyckades.');
+  }
 };
 
 export const signInWithEmail = async (email: string, password: string): Promise<firebase.User | null> => {
-    return runWithFallback(
-      async () => {
+    try {
         const result = await auth.signInWithEmailAndPassword(email, password);
         return result.user;
-      },
-      async () => {
-        // Fallback Mock Email Login
-        const mockUser = createMockUser(email, `mock-${email.replace(/[^a-zA-Z0-9]/g, '')}`);
-        localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ uid: mockUser.uid, email: mockUser.email }));
-        window.dispatchEvent(new Event('storage'));
-        return mockUser;
-      }
-    );
+    } catch (error: any) {
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+            throw new Error('Ogiltig e-post eller lösenord.');
+        }
+        console.error('Email Sign-In Error:', error);
+        throw new Error('Inloggning misslyckades.');
+    }
 };
 
 export const signUpWithEmail = async (email: string, password: string, plan: PremiumTier): Promise<{ user: firebase.User, userState: UserState } | null> => {
-    return runWithFallback(
-      async () => {
-          const result = await auth.createUserWithEmailAndPassword(email, password);
-          const userState = await dbService.initializeUserInDB(result.user!, plan);
-          return { user: result.user!, userState };
-      },
-      async () => {
-          // Fallback Mock Sign Up
-          const mockUser = createMockUser(email, `mock-${email.replace(/[^a-zA-Z0-9]/g, '')}`);
-          localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify({ uid: mockUser.uid, email: mockUser.email }));
-          const userState = await dbService.initializeUserInDB(mockUser, plan);
-          window.dispatchEvent(new Event('storage'));
-          return { user: mockUser, userState };
-      }
-    );
+    try {
+        const result = await auth.createUserWithEmailAndPassword(email, password);
+        const userState = await dbService.initializeUserInDB(result.user!, plan);
+        // Här kan man också lägga till att skicka verifieringsmail:
+        // await result.user!.sendEmailVerification();
+        return { user: result.user!, userState };
+    } catch (error: any) {
+        if (error.code === 'auth/email-already-in-use') {
+             throw new Error('E-postadressen används redan.');
+        }
+        console.error('Email Sign-Up Error:', error);
+        throw new Error('Registrering misslyckades.');
+    }
 };
 
 export const resetPassword = async (email: string): Promise<void> => {
-    return runWithFallback(
-        async () => {
-             await auth.sendPasswordResetEmail(email);
-        },
-        async () => {
-             console.log("Mock Password Reset Email sent to:", email);
-        }
-    );
+    try {
+        await auth.sendPasswordResetEmail(email);
+    } catch (error) {
+        console.error('Password Reset Error:', error);
+        throw new Error('Kunde inte skicka återställningslänk.');
+    }
 };
 
 export const signOutUser = async (): Promise<void> => {
   try {
+    // Avbryt all aktiv röstutmatning innan utloggning
     if (window.speechSynthesis) {
         window.speechSynthesis.cancel();
     }
-    
-    // Clear mock session
-    localStorage.removeItem(MOCK_SESSION_KEY);
-    
-    await auth.signOut().catch(() => {}); // Ignore auth errors on signout
-    window.location.reload(); // Force refresh to clear state
+    await auth.signOut();
   } catch (error) {
     console.error('Sign-Out Error:', error);
   }
@@ -135,47 +70,7 @@ export const signOutUser = async (): Promise<void> => {
 // --- AUTH STATE LISTENER ---
 
 export const onAuthStateChange = (callback: (user: firebase.User | null) => void) => {
-    let unsubscribed = false;
-
-    // 1. Listen to real Firebase Auth
-    const firebaseUnsub = auth.onAuthStateChanged((user) => {
-        if (unsubscribed) return;
-        
-        if (user) {
-            callback(user);
-        } else {
-            // 2. If no Firebase user, check for mock session in LocalStorage
-            const mockSession = localStorage.getItem(MOCK_SESSION_KEY);
-            if (mockSession) {
-                try {
-                  const data = JSON.parse(mockSession);
-                  const mockUser = createMockUser(data.email, data.uid);
-                  callback(mockUser);
-                } catch (e) {
-                  callback(null);
-                }
-            } else {
-                callback(null);
-            }
-        }
-    });
-
-    // 3. Listen for Storage events (to handle cross-tab or same-tab mock updates)
-    const storageHandler = () => {
-       const mockSession = localStorage.getItem(MOCK_SESSION_KEY);
-       if (mockSession && !auth.currentUser) {
-           const data = JSON.parse(mockSession);
-           const mockUser = createMockUser(data.email, data.uid);
-           callback(mockUser);
-       }
-    };
-    window.addEventListener('storage', storageHandler);
-
-    return () => {
-        unsubscribed = true;
-        firebaseUnsub();
-        window.removeEventListener('storage', storageHandler);
-    };
+    return auth.onAuthStateChanged(callback);
 };
 
 export const authService = {

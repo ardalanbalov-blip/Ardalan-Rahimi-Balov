@@ -4,21 +4,16 @@ import { getAuth } from 'firebase/auth';
 import { FIREBASE_CONFIG } from '../constants';
 
 const firebaseConfig = {
-  apiKey: (import.meta as any).env?.VITE_FIREBASE_API_KEY || FIREBASE_CONFIG.apiKey,
-  authDomain: (import.meta as any).env?.VITE_FIREBASE_AUTH_DOMAIN || FIREBASE_CONFIG.authDomain,
-  projectId: (import.meta as any).env?.VITE_FIREBASE_PROJECT_ID || FIREBASE_CONFIG.projectId,
-  storageBucket: (import.meta as any).env?.VITE_FIREBASE_STORAGE_BUCKET || FIREBASE_CONFIG.storageBucket,
-  messagingSenderId: (import.meta as any).env?.VITE_FIREBASE_MESSAGING_SENDER_ID || FIREBASE_CONFIG.messagingSenderId,
-  appId: (import.meta as any).env?.VITE_FIREBASE_APP_ID || FIREBASE_CONFIG.appId
+  apiKey: (import.meta as any).env?.VITE_FIREBASE_API_KEY || 'AIzaSyCNW7z0-ZzLbFVG0kn9XQOFMU4v-FFzBF0',
+  authDomain: (import.meta as any).env?.VITE_FIREBASE_AUTH_DOMAIN || 'aura-e0c49.firebaseapp.com',
+  projectId: (import.meta as any).env?.VITE_FIREBASE_PROJECT_ID || 'aura-e0c49',
+  storageBucket: (import.meta as any).env?.VITE_FIREBASE_STORAGE_BUCKET || 'aura-e0c49.appspot.com',
+  messagingSenderId: (import.meta as any).env?.VITE_FIREBASE_MESSAGING_SENDER_ID || '16375430386',
+  appId: (import.meta as any).env?.VITE_FIREBASE_APP_ID || '1:16375430386:web:a97c621aab38ee88c2a46b'
 };
 
 // Initialize Firebase
-// Export 'app' so other services (like Stripe) can use the initialized instance
 export const app = initializeApp(firebaseConfig);
 
-// Export Auth, Firestore, and Functions instances
+// Export instances
 export const auth = getAuth(app);
-export const db = getFirestore(app);
-
-// Initialize functions with the specific region 'europe-west4' to match your backend deployment
-export const functions = getFunctions(app, 'europe-west4');

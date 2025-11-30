@@ -14,13 +14,13 @@ export const TRIAL_DURATION_DAYS = 14;
 
 export const FIREBASE_CONFIG = {
   // Använd `?.` för att se till att den inte kraschar om `import.meta.env` är undefined.
-  apiKey: (import.meta as any).env?.VITE_FIREBASE_API_KEY || 'AIzaSyCNW7z0-ZzLbFVG0kn9XQOFMU4v-FFzBF0',
-  authDomain: (import.meta as any).env?.VITE_FIREBASE_AUTH_DOMAIN || 'aura-e0c49.firebaseapp.com',
-  projectId: (import.meta as any).env?.VITE_FIREBASE_PROJECT_ID || 'aura-e0c49',
-  storageBucket: (import.meta as any).env?.VITE_FIREBASE_STORAGE_BUCKET || 'aura-e0c49.appspot.com',
-  messagingSenderId: (import.meta as any).env?.VITE_FIREBASE_MESSAGING_SENDER_ID || '16375430386',
-  appId: (import.meta as any).env?.VITE_FIREBASE_APP_ID || '1:16375430386:web:a97c621aab38ee88c2a46b',
-  measurementId: (import.meta as any).env?.VITE_FIREBASE_MEASUREMENT_ID || 'G-H7JGV82Q48'
+  apiKey:  'AIzaSyCWN7Z0-ZzLbFvG0kn9XQoFMU4v-FfzBF0',
+  authDomain: 'aura-e0c49.firebaseapp.com',
+  projectId:'aura-e0c49',
+  storageBucket: 'aura-e0c49.appspot.com',
+  messagingSenderId: '16375430386',
+  appId: '1:16375430386:web:a97c621aab38ee88c2a46b',
+  measurementId: 'G-H7JGV82Q48'
 };
 
 

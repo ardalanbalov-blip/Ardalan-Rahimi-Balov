@@ -21,7 +21,7 @@ const getEnv = (key: string): string => {
 };
 
 export const FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyCNW7z0-ZzLbFVG0kn9XQOFMU4v-FFzBF0',
+  apiKey: 'AIzaSyCWN7Z0-ZzLbFvG0kn9XQoFMU4v-FfzBF0',
   authDomain: 'aura-e0c49.firebaseapp.com',
   projectId: 'aura-e0c49',
   storageBucket: 'aura-e0c49.appspot.com',
